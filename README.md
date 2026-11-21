@@ -12,7 +12,7 @@ Historique : ce dépôt public repart d’un instantané ; l’historique de dé
 
 ## Licence
 
-- Code : licence MIT (`LICENSE`), copyright 2026 Romain Nicault.
+- Code : licence MIT (`LICENSE`), copyright 2026 Romain Nicault. Périmètre détaillé : `NOTICE.md`.
 - Hors licence, droits réservés : textes éditoriaux, données (export, médailles, scores, rangs, coordonnées des vignerons), visuels et éléments de marque (`assets/brand/`, `public/brand/`) et charte (`DESIGN.md`). Leur reproduction exige un accord écrit. Les palmarès restent soumis aux droits de leurs producteurs.
 - Polices : SIL Open Font License 1.1, textes dans `public/fonts/`.
 - Données géographiques : licences de leurs producteurs, détaillées dans `data/geo/LICENCE.md`.
