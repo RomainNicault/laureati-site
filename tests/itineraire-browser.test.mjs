@@ -102,7 +102,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     // Conditions EEE : saisie remplacée par un résumé sans nom de lieu à côté de la carte, focus sur le résumé.
     assert.deepEqual(await zones(page), { saisie: false, 'trajet-resume': true, 'carte-statique': false, 'carte-cadre': true, 'carte-charger': false, 'arbre-trajet': true });
     assert.deepEqual([await page.locator('#depart').isVisible(), await page.locator('#arrivee').isVisible(), await page.locator('#calculer').isVisible()], [false, false, false]);
-    assert.equal(await page.locator('#trajet-resume').innerText(), 'Trajet calculé.\nModifier le trajet');
+    assert.equal((await page.locator('#trajet-resume').innerText()).replace(/\s+/g, ' '), 'Trajet calculé. Modifier le trajet');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'resume-titre');
     assert.equal(await page.locator('#attribution-trajet').isVisible(), true);
     // Repères le long du trajet depuis la polyligne (km), jamais depuis les étapes Routes (durées).
