@@ -23,9 +23,11 @@ import { dataset } from '../lib/data';
   </section>
 
   <section><h2>Propriété intellectuelle</h2>
-    <p>Les textes, la mise en page et le code du site sont des créations originales de l’éditeur. Toute reproduction substantielle exige son accord écrit.</p>
+    <p>Le code du site est publié sous licence MIT (Massachusetts Institute of Technology), sur son <a href="https://github.com/RomainNicault/laureati-site">dépôt public</a>. Cette licence couvre le code seul.</p>
+    <p>Les textes, les visuels, le logo et la charte graphique sont des créations originales de l’éditeur. Les données publiées, dont les fiches, les scores, les rangs et les coordonnées des vignerons, ne sont pas non plus sous licence ouverte. Ces éléments restent réservés : toute reproduction substantielle exige l’accord écrit de l’éditeur.</p>
     <p>Les médailles proviennent des palmarès officiels publiés par les concours. Laureati les recense, les calcule et les classe. Il ne revendique aucun droit sur ces résultats. Les palmarès d’origine restent consultables ici :</p>
     <ul>{dataset.competitions.map(c => <li><a href={c.url}>{c.nom}</a></li>)}</ul>
+    <p>Un organisateur de concours peut contester la reprise de ses résultats en écrivant à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>. Les résultats contestés sont retirés du site sous 7 jours.</p>
     <p>Les noms et marques des concours, des domaines et des appellations appartiennent à leurs titulaires.</p>
   </section>
 

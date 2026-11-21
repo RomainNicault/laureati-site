@@ -3,9 +3,16 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { buildTree, corridorEntries, resample } from '../src/lib/itineraire.ts';
+import { buildTree, corridorEntries, resample, ROUTES_FIELD_MASK } from '../src/lib/itineraire.ts';
+
+// Captures : CAPTURES, sinon en CI le dossier publié par le contrôle visuel (artefact controle-visuel).
+const CAPTURES = process.env.CAPTURES || (process.env.CI ? 'tests/visual/out' : '');
+if (CAPTURES) mkdirSync(CAPTURES, { recursive: true });
+const shot = (page, name, fullPage = true) => CAPTURES ? page.screenshot({ path: `${CAPTURES}/${name}.png`, fullPage }) : undefined;
+// Visibilité des zones soumises aux conditions Google Maps Platform EEE.
+const zones = page => page.evaluate(() => Object.fromEntries(['saisie', 'trajet-resume', 'carte-statique', 'carte-cadre', 'carte-charger', 'arbre-trajet'].map(id => { const e = document.getElementById(id); return [id, !!e && e.checkVisibility()]; })));
 
 // Tracé approximatif Paris → Bordeaux (A10 par Orléans, Tours, Poitiers), encodé comme une polyligne Google.
 const PATH = [[48.857, 2.352], [48.4, 2.05], [47.9, 1.9], [47.59, 1.33], [47.39, 0.69], [46.58, 0.34], [46.32, -0.46], [45.75, -0.63], [45.2, -0.6], [44.84, -0.58]].map(([lat, lng]) => ({ lat, lng }));
@@ -42,17 +49,18 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
-  const calls = [], local = [], thirdParties = []; let clicked = false, verified = false, busyDuringRoute; const busyDuringMap = [];
+  const calls = [], local = [], thirdParties = []; let clicked = false, verified = false, mapsDown = false, routeFail = false, busyDuringRoute; const busyDuringMap = [];
   const mocked = new Set(['places.googleapis.com', 'maps.googleapis.com', 'routes.googleapis.com', 'challenges.cloudflare.com']);
   // Garde général d'abord (dernière route enregistrée = première exécutée) : tout hôte tiers avant le clic est bloqué et noté.
   async function guard(context) {
     await context.route('https://places.googleapis.com/**', async route => { calls.push({ kind: 'autocomplete', body: route.request().postDataJSON() }); await route.fulfill({ json: { suggestions: [{ placePrediction: { placeId: 'lieu-test', text: { text: 'Bordeaux, France' } } }] } }); });
-    await context.route('https://maps.googleapis.com/**', async route => { calls.push({ kind: 'map' }); busyDuringMap.push(await route.request().frame().page().evaluate(() => { const b = document.querySelector('#calculer'); return [b.disabled, b.textContent]; })); await route.fulfill({ contentType: 'text/javascript', body: MAPS_STUB }); });
+    await context.route('https://maps.googleapis.com/**', async route => { if (mapsDown) { calls.push({ kind: 'map-echec' }); return route.abort(); } calls.push({ kind: 'map' }); busyDuringMap.push(await route.request().frame().page().evaluate(() => { const b = document.querySelector('#calculer'); return [b.disabled, b.textContent]; })); await route.fulfill({ contentType: 'text/javascript', body: MAPS_STUB }); });
     await context.route('https://challenges.cloudflare.com/**', async route => { calls.push({ kind: 'turnstile' }); await route.fulfill({ contentType: 'text/javascript', body: 'window.turnstile={render:(el,o)=>o.callback("jeton-test")};' }); });
     await context.route('**/api/turnstile', async route => { served.push(`${route.request().url()} ${route.request().headers().referer ?? ''}`); calls.push({ kind: 'verify' }); verified = true; await route.fulfill({ json: { ok: true } }); });
     await context.route('https://routes.googleapis.com/**', async route => {
       assert.equal(verified, true, 'Turnstile vérifié avant Routes');
       calls.push({ kind: 'route', body: route.request().postDataJSON(), mask: route.request().headers()['x-goog-fieldmask'] });
+      if (routeFail) return route.fulfill({ status: 400, json: { error: { code: 400, message: 'test' } } });
       busyDuringRoute = await route.request().frame().page().evaluate(() => { const b = document.querySelector('#calculer'); return { disabled: b.disabled, busy: b.getAttribute('aria-busy'), text: b.textContent, trajet: document.querySelector('[data-step="trajet"]').dataset.state, robot: document.querySelector('[data-step="robot"]').dataset.state }; });
       await route.fulfill({ json: { routes: [{ distanceMeters: 585000, staticDuration: '19800s', polyline: { encodedPolyline: encode(PATH) }, legs: [{ steps: [{ distanceMeters: 300000, staticDuration: '10000s' }, { distanceMeters: 285000, staticDuration: '9800s' }] }] }] } });
     });
@@ -74,6 +82,10 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     assert.deepEqual(thirdParties, [], `Domaines tiers avant le clic : ${thirdParties.join(', ')}`);
     assert.equal(calls.length, 0);
     assert.equal(await page.locator('#arrivee-suggestions').isVisible(), false);
+    // Sans trajet : carte statique Laureati affichée, aucune liste. Sans accord, la saisie libre n'est pas du contenu Google.
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#arbre-trajet').isVisible()], [true, false]);
+    assert.deepEqual(await zones(page), { saisie: true, 'trajet-resume': false, 'carte-statique': true, 'carte-cadre': false, 'carte-charger': false, 'arbre-trajet': false });
+    await shot(page, 'itineraire-1-arrivee-sans-accord');
     assert.ok(!local.some(p => p.includes('/itineraire/geo/') || p.endsWith('donnees.json')), 'géo et données chargées seulement après le clic');
     for (const host of ['nouveau.googleapis.com', 'tiers.example.org']) { await page.evaluate(h => fetch(`https://${h}/sonde`).catch(() => {}), host); assert.equal(thirdParties.pop(), host); }
 
@@ -86,12 +98,28 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     assert.equal(await page.evaluate(() => localStorage.getItem('laureati-google-maps-v1')), 'oui', 'le clic mémorise l’accord');
     const routeCall = calls.find(c => c.kind === 'route');
     assert.equal(count('route'), 1); assert.equal(count('map'), 1);
+    // Carte Google affichée avec la liste : la carte statique est masquée (pas de régression de la carte Google).
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#arbre-trajet').isVisible()], [false, true, true]);
+    // Conditions EEE : saisie remplacée par un résumé sans nom de lieu à côté de la carte, focus sur le résumé.
+    assert.deepEqual(await zones(page), { saisie: false, 'trajet-resume': true, 'carte-statique': false, 'carte-cadre': true, 'carte-charger': false, 'arbre-trajet': true });
+    assert.deepEqual([await page.locator('#depart').isVisible(), await page.locator('#arrivee').isVisible(), await page.locator('#calculer').isVisible()], [false, false, false]);
+    assert.equal((await page.locator('#trajet-resume').innerText()).replace(/\s+/g, ' '), 'Trajet calculé. Modifier le trajet');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'resume-titre');
+    assert.equal(await page.locator('#attribution-trajet').isVisible(), true);
+    // Repères le long du trajet depuis la polyligne (km), jamais depuis les étapes Routes (durées).
+    const reperes = await page.$$eval('#arbre .tree-meta > span:first-child', ss => ss.map(x => x.textContent));
+    assert.ok(reperes.length > 0 && reperes.every(t => /^À (moins de 5|\d+) km du départ$/.test(t)), reperes.join(' | '));
+    const sauve = await page.evaluate(() => JSON.parse(sessionStorage.getItem('laureati-trajet-v1')));
+    assert.deepEqual(Object.keys(sauve.route).sort(), ['distanceMeters', 'polyline', 'staticDuration'], 'aucune étape gardée en session');
     assert.deepEqual([routeCall.body.origin, routeCall.body.destination], [{ address: 'Paris' }, { address: 'Bordeaux' }], 'géocodage par Routes, sans appel Places');
     assert.equal(routeCall.body.routingPreference, 'TRAFFIC_UNAWARE');
-    assert.match(routeCall.mask, /routes\.legs\.steps\.staticDuration/);
+    // Routes sans étapes ni description (conditions EEE, Routes) : masque exact, sans legs ni steps.
+    assert.equal(routeCall.mask, ROUTES_FIELD_MASK);
+    assert.doesNotMatch(routeCall.mask, /steps|legs|description|navigationInstruction|\*/);
     assert.equal(count('autocomplete'), 0);
     assert.ok(calls.findIndex(c => c.kind === 'verify') < calls.findIndex(c => c.kind === 'route'));
-    if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/mobile-resultat.png`, fullPage: true });
+    await shot(page, 'mobile-resultat');
+    await shot(page, 'itineraire-3-resultat-resume-carte');
     // Adresse unique de partage, couloir de 10 km par défaut.
     // Lieux dans le fragment (#) : jamais dans la partie de l'adresse envoyée au serveur.
     assert.equal(new URL(page.url()).search, '');
@@ -157,10 +185,8 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     assert.equal(await panel.locator('details.act-route summary').count(), 1);
     const small = await panel.evaluate(p => [...p.querySelectorAll('a.btn, button, summary, .route-panel__app a')].filter(e => e.getBoundingClientRect().height < 44).map(e => e.textContent));
     assert.deepEqual(small, [], 'cibles de 44 px');
-    // Échap dans un champ : ferme seulement les suggestions, ni le panneau ni le focus ne bougent.
-    await page.locator('#depart').focus(); await page.keyboard.press('Escape');
-    assert.equal(await panel.isVisible(), true, 'Échap dans un champ ne ferme pas le panneau');
-    assert.equal(await page.evaluate(() => document.activeElement?.id), 'depart');
+    // Champs masqués tant que la carte est affichée : panneau et saisie ne coexistent pas.
+    assert.equal(await page.locator('#depart').isVisible(), false, 'aucun champ à côté de la carte');
     await page.locator('#panneau-titre').focus();
     await page.keyboard.press('Escape'); assert.equal(await panel.isVisible(), false);
 
@@ -182,7 +208,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     assert.equal(await page.locator('#etat-trajet').evaluate(e => !!e.closest('[inert]')), true, 'statut principal toujours inerte');
     await clickProducer(page, first.url, first.nom);
     const box = await panel.boundingBox(); assert.ok(box.y > 200 && box.width >= 380, `panneau en bas sur mobile : ${JSON.stringify(box)}`);
-    if (process.env.CAPTURES) await page.screenshot({ path: `${process.env.CAPTURES}/mobile-plein-ecran-panneau.png` });
+    await shot(page, 'mobile-plein-ecran-panneau', false);
     await page.keyboard.press('Escape'); assert.equal(await panel.isVisible(), false); assert.equal(await page.locator('#carte-zone.is-plein').count(), 1);
     await page.keyboard.press('Escape'); assert.equal(await page.locator('#carte-zone.is-plein').count(), 0);
     assert.equal(await page.locator('[inert]').count(), 0, 'inert retiré en sortie de plein écran');
@@ -195,6 +221,27 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     // R7 : l'échec local précédent ne reste pas affiché après un calcul réussi.
     assert.deepEqual(await page.locator('#etat-trajet').evaluate(e => [e.classList.contains('is-error'), e.textContent === 'Calcul local impossible.']), [false, false]);
 
+    // « Modifier le trajet » : saisie rouverte, aucune carte (ni Google ni statique), liste sans « Sur la carte ».
+    const avantModif = calls.length;
+    await page.locator('#modifier-trajet').click();
+    assert.deepEqual(await zones(page), { saisie: true, 'trajet-resume': false, 'carte-statique': false, 'carte-cadre': false, 'carte-charger': false, 'arbre-trajet': true });
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'depart');
+    assert.deepEqual(await page.evaluate(() => [document.querySelector('#depart').value, document.querySelector('#arrivee').value]), ['Paris', 'Bordeaux']);
+    assert.equal(await page.locator('#arbre .act-map').first().evaluate(e => getComputedStyle(e).display), 'none', '« Sur la carte » masqué pendant la saisie');
+    assert.equal(await page.locator('#annuler-modification').isVisible(), true);
+    // Échap dans un champ : ferme seulement les suggestions, la saisie reste ouverte et le focus ne bouge pas.
+    await page.keyboard.press('Escape');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'depart');
+    assert.equal(await page.locator('#saisie').isVisible(), true);
+    await shot(page, 'itineraire-5-modifier-sans-carte');
+    // « Annuler » : retour au trajet affiché, champs remis au trajet, aucun appel Google.
+    await page.locator('#depart').fill('Ly'); // moins de 3 caractères : aucune suggestion demandée
+    await page.locator('#annuler-modification').click();
+    assert.deepEqual(await zones(page), { saisie: false, 'trajet-resume': true, 'carte-statique': false, 'carte-cadre': true, 'carte-charger': false, 'arbre-trajet': true });
+    assert.equal(await page.evaluate(() => document.querySelector('#depart').value), 'Paris');
+    assert.equal(calls.length, avantModif, 'aucun appel Google ni Turnstile');
+    assert.equal(count('route'), 1);
+
     // Retour depuis une fiche : départ, arrivée, couloir et résultat restaurés sans Routes ni Turnstile.
     await page.locator('#arbre details.tree-region').first().locator('summary').first().click();
     await page.locator('#arbre details.tree-app').first().locator('summary').first().click();
@@ -204,11 +251,14 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await page.goBack(); await page.waitForFunction(() => /^Trajet (restauré|calculé)/.test(document.querySelector('#etat-trajet')?.textContent ?? ''));
     assert.deepEqual(await page.evaluate(() => [document.querySelector('#depart').value, document.querySelector('#arrivee').value, document.querySelector('#couloir').value]), ['Paris', 'Bordeaux', '30']);
     assert.ok(await page.locator('#arbre details.tree-region').count() > 0);
+    // Retour arrière : résumé sans lieux avec la carte, champs remplis mais masqués.
+    assert.deepEqual(await zones(page), { saisie: false, 'trajet-resume': true, 'carte-statique': false, 'carte-cadre': true, 'carte-charger': false, 'arbre-trajet': true });
     assert.equal(count('route'), 1); assert.equal(count('verify'), 1);
     // Rechargement : restauration depuis la session, une carte chargée, aucun Routes ni Turnstile.
     served.length = 0;
     await page.reload(); await page.waitForFunction(() => document.querySelector('#etat-trajet')?.textContent?.startsWith('Trajet restauré'));
     assert.deepEqual(await page.$$eval('#etapes li', ls => ls.map(l => l.dataset.state)), ['skip', 'skip', 'done', 'done']);
+    assert.deepEqual(await zones(page), { saisie: false, 'trajet-resume': true, 'carte-statique': false, 'carte-cadre': true, 'carte-charger': false, 'arbre-trajet': true });
     assert.equal(await page.locator('#couloir').inputValue(), '30');
     assert.equal(count('route'), 1); assert.equal(count('verify'), 1); assert.equal(count('turnstile'), 1);
     assert.equal(await page.evaluate(() => window.__maps), 1, 'une seule carte par chargement');
@@ -241,10 +291,13 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
 
     // Plafond de session.
     await page.evaluate(() => sessionStorage.setItem('laureati-recherches', '10'));
+    await page.locator('#modifier-trajet').click();
     await page.locator('#calculer').click(); assert.match(await page.locator('#etat-trajet').textContent(), /Limite de 10/);
     assert.equal(count('route'), 1);
+    // Recherche refusée : la saisie reste ouverte, toujours sans carte.
+    assert.deepEqual([await page.locator('#saisie').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#carte-statique').isVisible()], [true, false, false]);
 
-    // Plafond de 20 cartes Google par session : au-delà, arbre et carte statique, bouton soumis au même plafond.
+    // Plafond de 20 cartes Google par session : au-delà, liste seule (carte statique masquée), bouton soumis au même plafond.
     const mapsBefore = count('map'), etat = () => page.locator('#etat-trajet').textContent();
     await page.evaluate(() => sessionStorage.setItem('laureati-cartes', '20'));
     await page.reload(); await page.waitForFunction(() => /Limite de 20 cartes/.test(document.querySelector('#etat-trajet')?.textContent ?? ''));
@@ -253,16 +306,30 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await page.locator('#couloir').fill('25'); await page.locator('#couloir').dispatchEvent('change');
     await page.waitForFunction(() => location.hash.includes('couloir=25'));
     assert.match(await etat(), /Limite de 20 cartes/);
-    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible()], [true, false, true]);
+    // Conditions Google Maps Platform (3.2.3(e), 19.2) : liste issue de Routes jamais à côté de la carte statique Laureati.
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible(), await page.locator('#arbre-trajet').isVisible()], [false, false, true, true]);
     assert.ok(await page.locator('#arbre details.tree-region').count() > 0, 'arbre restauré sans carte');
+    // Liste sans carte Google : attribution « Google Maps » non traduite dans l'en-tête de la liste.
+    assert.deepEqual(await page.locator('#attribution-trajet').evaluate(e => [e.checkVisibility(), e.textContent, e.getAttribute('translate'), !!e.closest('header')?.querySelector('#arbre-titre')]), [true, 'Google Maps', 'no', true]);
+    assert.equal(await page.locator('#saisie').isVisible(), false, 'résumé sans lieux, même sans carte');
+    await shot(page, 'itineraire-4-liste-sans-carte-plafond');
     await page.locator('#charger-carte').click(); await page.waitForFunction(() => !document.querySelector('#calculer').disabled);
     assert.match(await etat(), /Limite de 20 cartes/); assert.equal(count('map'), mapsBefore, 'bouton refusé au plafond');
     await page.evaluate(() => sessionStorage.setItem('laureati-cartes', '19'));
     await page.locator('#charger-carte').click(); await page.waitForFunction(() => document.querySelector('#etat-trajet')?.textContent?.startsWith('Carte Google affichée'));
     assert.equal(count('map'), mapsBefore + 1);
-    assert.deepEqual([await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible()], [true, false]);
+    assert.deepEqual([await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible(), await page.locator('#carte-statique').isVisible()], [true, false, false]);
     assert.ok(await page.locator('#arbre .act-map').count() > 0, 'arbre redessiné avec « Sur la carte »');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('laureati-cartes')), '20');
+    await page.evaluate(() => sessionStorage.removeItem('laureati-cartes'));
+    // Échec du chargement de la carte Google : liste seule, carte statique masquée, bouton pour réessayer.
+    mapsDown = true;
+    await page.reload(); await page.waitForFunction(() => /Carte Google indisponible/.test(document.querySelector('#etat-trajet')?.textContent ?? ''));
+    assert.ok(count('map-echec') >= 1); assert.equal(count('map'), mapsBefore + 1, 'aucune carte chargée');
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible(), await page.locator('#arbre-trajet').isVisible()], [false, false, true, true]);
+    assert.ok(await page.locator('#arbre details.tree-region').count() > 0, 'liste affichée sans carte');
+    assert.equal(await page.locator('#attribution-trajet').isVisible(), true, 'attribution Google Maps avec la liste seule');
+    mapsDown = false;
     await page.evaluate(() => sessionStorage.removeItem('laureati-cartes'));
 
     // Accord mémorisé : suggestions Places pendant la saisie, choix transmis par placeId.
@@ -271,13 +338,28 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     assert.equal(await page.locator('#mention-google').isVisible(), false, 'une seule ligne d\'accord');
     assert.equal(await page.locator('#calculer').getAttribute('aria-describedby'), 'choix-google');
     await page.evaluate(() => sessionStorage.removeItem('laureati-recherches'));
-    await page.locator('#arrivee').fill('Borde'); await page.locator('#arrivee-suggestions button').click();
+    // Accord donné, saisie pas commencée : carte statique visible. Dès le focus (suggestions possibles) : aucune carte.
+    assert.equal(await page.locator('#carte-statique').isVisible(), true, 'accord donné, pas de saisie : carte statique');
+    await page.locator('#arrivee').focus();
+    assert.deepEqual(await zones(page), { saisie: true, 'trajet-resume': false, 'carte-statique': false, 'carte-cadre': false, 'carte-charger': false, 'arbre-trajet': false });
+    assert.deepEqual(await page.locator('#google-attribution').evaluate(e => [e.checkVisibility(), e.getAttribute('translate')]), [true, 'no']);
+    await page.locator('#arrivee').fill('Borde'); await page.locator('#arrivee-suggestions button').waitFor();
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible()], [false, false], 'suggestions sans carte');
+    await shot(page, 'itineraire-2-saisie-suggestions');
+    await page.locator('#arrivee-suggestions button').click();
     assert.equal(count('autocomplete'), 1);
+    // Libellé Places dans le champ : toujours aucune carte, même hors focus.
+    await page.locator('#couloir').focus();
+    assert.equal(await page.locator('#carte-statique').isVisible(), false, 'libellé Places sans carte');
     assert.ok(calls.find(c => c.kind === 'autocomplete').body.sessionToken);
     await page.locator('#depart').fill('Paris'); await page.waitForTimeout(500);
     await page.locator('#calculer').click(); await page.waitForFunction(() => document.querySelector('#etat-trajet')?.textContent?.startsWith('Trajet calculé'));
     assert.deepEqual(calls.filter(c => c.kind === 'route').at(-1).body.destination, { placeId: 'lieu-test' });
     assert.match(page.url(), /arrivee=Bordeaux%2C\+France&arrivee_id=lieu-test&couloir=10$/);
+    // Le libellé Google reste dans le fragment (non affiché), jamais visible à côté de la carte.
+    assert.equal(await page.locator('#carte-cadre').isVisible(), true);
+    assert.equal(await page.locator('#arrivee').isVisible(), false);
+    assert.ok(!(await page.evaluate(() => document.body.innerText)).includes('Bordeaux, France'), 'aucun libellé Places visible');
 
     // Oubli : choix effacé, retour à la saisie libre.
     clicked = false; await page.locator('#oublier-google').click(); await page.waitForLoadState('networkidle');
@@ -285,6 +367,18 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     const n = calls.length; await page.locator('#arrivee').fill('Bordeaux'); await page.waitForTimeout(600);
     assert.equal(calls.length, n);
     assert.deepEqual(thirdParties, [], `Domaines tiers inattendus : ${thirdParties.join(', ')}`);
+
+    // Accord donné par Entrée, focus resté dans le champ, Routes en échec puis frappe : suggestions sans carte statique, attribution visible.
+    await page.evaluate(() => sessionStorage.removeItem('laureati-recherches'));
+    clicked = true; routeFail = true; const routes = count('route');
+    await page.locator('#depart').fill('Paris'); await page.locator('#arrivee').fill('Nulle part'); await page.locator('#arrivee').press('Enter');
+    while (count('route') === routes) await page.waitForTimeout(50);
+    await page.waitForFunction(() => document.querySelector('#calculer')?.getAttribute('aria-busy') === 'false');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'arrivee', 'focus resté dans le champ');
+    await page.locator('#arrivee').fill('Borde'); await page.locator('#arrivee-suggestions button').waitFor();
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible()], [false, false], 'suggestions après Entrée sans carte');
+    assert.equal(await page.locator('#google-attribution').isVisible(), true, 'attribution avec les suggestions');
+    routeFail = false; clicked = false; const avantPartage = calls.length;
     await context.close();
 
     // Adresse partagée, appareil neuf : champs préremplis, zéro requête tierce, le calcul attend « Calculer ».
@@ -293,8 +387,10 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await other.goto(`${origin}/itineraire/#depart=Paris&arrivee=Bordeaux%2C+France&arrivee_id=lieu-test&couloir=15`); await other.waitForLoadState('networkidle');
     assert.deepEqual(await other.evaluate(() => [document.querySelector('#depart').value, document.querySelector('#arrivee').value, document.querySelector('#couloir').value, document.querySelector('#distance-couloir').textContent]), ['Paris', 'Bordeaux, France', '15', '15 km']);
     assert.match(await other.locator('#etat-trajet').textContent(), /Cliquez sur « Calculer »/);
-    if (process.env.CAPTURES) await other.screenshot({ path: `${process.env.CAPTURES}/bureau-lien-partage.png` });
-    assert.deepEqual(thirdParties, []); assert.equal(calls.length, n);
+    // Libellé issu d'une suggestion (arrivee_id) : contenu Places, carte statique masquée même sans accord.
+    assert.deepEqual(await zones(other), { saisie: true, 'trajet-resume': false, 'carte-statique': false, 'carte-cadre': false, 'carte-charger': false, 'arbre-trajet': false });
+    await shot(other, 'bureau-lien-partage', false);
+    assert.deepEqual(thirdParties, []); assert.equal(calls.length, avantPartage);
     assert.ok(!local.some(p => p.includes('/itineraire/geo/') || p.endsWith('donnees.json')));
     clicked = true; await other.locator('#calculer').click(); await other.waitForFunction(() => document.querySelector('#etat-trajet')?.textContent?.startsWith('Trajet calculé'));
     const last = calls.filter(c => c.kind === 'route').at(-1).body;
@@ -303,13 +399,15 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await clickProducer(other, first.url, first.nom);
     const side = await other.locator('#panneau').boundingBox(), stage = await other.locator('#carte-cadre').boundingBox();
     assert.ok(side.width <= 380 && side.x > stage.x + stage.width / 2, 'panneau sur le côté sur bureau');
-    if (process.env.CAPTURES) { await other.locator('#carte-cadre').scrollIntoViewIfNeeded(); await other.screenshot({ path: `${process.env.CAPTURES}/bureau-panneau.png` }); }
+    if (CAPTURES) { await other.locator('#carte-cadre').scrollIntoViewIfNeeded(); await shot(other, 'bureau-panneau', false); }
     // B2 : lien d'un autre trajet collé dans l'onglet (même document) : rechargement, champs du lien, aucun calcul.
     const champs = () => other.evaluate(() => [document.querySelector('#depart').value, document.querySelector('#arrivee').value, document.querySelector('#couloir').value]);
     const routesAvant = count('route');
     await other.evaluate(() => { setTimeout(() => { location.hash = 'depart=Lyon&arrivee=Marseille&couloir=20'; }); });
     await other.waitForFunction(() => document.querySelector('#depart')?.value === 'Lyon' && /Trajet prérempli/.test(document.querySelector('#etat-trajet')?.textContent ?? ''));
     assert.deepEqual(await champs(), ['Lyon', 'Marseille', '20']);
+    // Lien sans identifiant de lieu, pas de saisie : carte statique affichée, aucune carte Google.
+    assert.deepEqual(await zones(other), { saisie: true, 'trajet-resume': false, 'carte-statique': true, 'carte-cadre': false, 'carte-charger': false, 'arbre-trajet': false });
     // Sans trajet affiché, un nouveau lien collé préremplit aussi.
     await other.evaluate(() => { setTimeout(() => { location.hash = 'depart=Nice&arrivee=Lille&couloir=10'; }); });
     await other.waitForFunction(() => document.querySelector('#depart')?.value === 'Nice' && /Trajet prérempli/.test(document.querySelector('#etat-trajet')?.textContent ?? ''));

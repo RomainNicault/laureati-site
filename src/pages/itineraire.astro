@@ -14,15 +14,22 @@ const steps=[['robot','Anti-robot'],['trajet','Trajet'],['vignerons','Vignerons'
     <header class="page-head"><span class="eyebrow">Itinéraire</span><h1>Un voyage prévu ? Trouvez le bon vigneron sur votre trajet.</h1><DataStamp /></header>
     <form id="trajet" class="route-form" aria-labelledby="trajet-titre">
       <h2 id="trajet-titre" class="sr-only">Votre trajet</h2>
-      <div class="route-fields">{fields.map(([id,label,placeholder])=><div class="route-field"><label for={id}>{label}</label><input id={id} name={id} placeholder={placeholder} autocomplete="off" required minlength="2" maxlength="200" aria-autocomplete="list" aria-controls={`${id}-suggestions`} aria-expanded="false" role="combobox"/><ul id={`${id}-suggestions`} class="route-suggestions" role="listbox" aria-label={`Suggestions : ${label}`} hidden></ul></div>)}</div>
-      <p id="google-attribution" class="note" hidden>Powered by Google</p>
-      <div class="route-go">
-        <button id="calculer" class="btn btn--primary route-submit" type="submit" aria-describedby="mention-google" aria-busy="false"><span class="route-submit__label">Calculer</span></button>
-        <p id="mention-google" class="note route-mention">Calculer envoie vos adresses et votre IP à Google, avec un contrôle anti-robot Cloudflare. <a href="/confidentialite/#itineraire">Confidentialité</a></p>
+      <div id="saisie" class="route-entry">
+        <div class="route-fields">{fields.map(([id,label,placeholder])=><div class="route-field"><label for={id}>{label}</label><input id={id} name={id} placeholder={placeholder} autocomplete="off" required minlength="2" maxlength="200" aria-autocomplete="list" aria-controls={`${id}-suggestions`} aria-expanded="false" role="combobox"/><ul id={`${id}-suggestions`} class="route-suggestions" role="listbox" aria-label={`Suggestions : ${label}`} hidden></ul></div>)}</div>
+        <p id="google-attribution" class="route-attribution" translate="no" hidden>Google Maps</p>
+        <div class="route-go">
+          <button id="calculer" class="btn btn--primary route-submit" type="submit" aria-describedby="mention-google" aria-busy="false"><span class="route-submit__label">Calculer</span></button>
+          <p id="mention-google" class="note route-mention">Calculer envoie vos adresses et votre IP à Google, avec un contrôle anti-robot Cloudflare. <a href="/confidentialite/#itineraire">Confidentialité</a></p>
+        </div>
+        <p id="annuler-ligne" class="route-cancel" hidden><button id="annuler-modification" class="btn btn--quiet" type="button">Annuler</button></p>
+        {!key && <p class="note">Le calcul est indisponible pour ce build. La carte et les listes restent accessibles.</p>}
+      </div>
+      <div id="trajet-resume" class="route-summary" hidden>
+        <p id="resume-titre" tabindex="-1">Trajet calculé.</p>
+        <button id="modifier-trajet" class="btn" type="button">Modifier le trajet</button>
       </div>
       <p id="choix-google" class="note" hidden>Google activé sur cet appareil, sans cookie. <button id="oublier-google" class="btn btn--quiet" type="button">Oublier</button> · <a href="/confidentialite/#itineraire">Confidentialité</a></p>
       <div id="turnstile"></div>
-      {!key && <p class="note">Le calcul est indisponible pour ce build. La carte et les listes restent accessibles.</p>}
       <noscript><p>JavaScript est nécessaire pour calculer un itinéraire. Les régions et appellations restent accessibles plus bas.</p></noscript>
     </form>
     <div id="progression" class="route-progress" hidden>
@@ -57,7 +64,7 @@ const steps=[['robot','Anti-robot'],['trajet','Trajet'],['vignerons','Vignerons'
       <p class="note">10 recherches et 20 cartes Google au maximum par session. Voiture, sans trafic, sans étape intermédiaire.</p>
     </section>
     <section id="arbre-trajet" class="route-tree stack" hidden aria-labelledby="arbre-titre">
-      <h2 id="arbre-titre">Sur votre trajet</h2>
+      <header class="route-tree__head"><h2 id="arbre-titre">Sur votre trajet</h2><span id="attribution-trajet" class="route-attribution" translate="no">Google Maps</span></header>
       <p id="resume-trajet" class="lede"></p>
       <p class="route-share"><button id="copier-lien" class="btn btn--quiet" type="button">Copier le lien du trajet</button> <span id="copier-etat" class="note" aria-live="polite"></span></p>
       <p class="note">Régions dans l'ordre du trajet, puis leurs appellations, puis leurs vignerons triés par points concours.</p>
@@ -82,6 +89,19 @@ const steps=[['robot','Anti-robot'],['trajet','Trajet'],['vignerons','Vignerons'
   .route-submit[aria-busy=true]::before { content:''; width:16px; height:16px; border-radius:50%; border:2px solid currentColor; border-right-color:transparent; animation:route-spin .8s linear infinite; }
   @keyframes route-spin { to { transform:rotate(1turn); } }
   .route-mention { font-size:var(--text-sm); }
+  .route-entry { display:grid; gap:12px; }
+  .route-cancel { margin:0; }
+  .route-cancel .btn { min-height:44px; }
+  .route-summary { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
+  .route-summary p { margin:0; font-weight:600; }
+  .route-summary p:focus { outline:none; }
+  .route-summary .btn { min-height:44px; }
+  /* Attribution Google Maps hors carte Google : texte non traduit, police sans empattement, gris des consignes Google. */
+  .route-attribution { display:block; margin:0; font:400 var(--text-sm)/1.4 Roboto, Arial, sans-serif; letter-spacing:normal; white-space:nowrap; color:#5e5e5e; }
+  .route-tree__head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 16px; }
+  .route-tree__head h2 { margin:0; }
+  /* Saisie ouverte après un trajet : carte masquée, « Sur la carte » sans objet. */
+  #itineraire[data-mode=saisie] #arbre :global(.act-map) { display:none; }
   .route-mention a { display:inline-flex; align-items:center; min-height:44px; }
   #choix-google .btn { min-height:44px; margin-left:4px; }
   #choix-google a { display:inline-flex; align-items:center; min-height:44px; }

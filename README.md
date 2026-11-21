@@ -8,7 +8,14 @@ Historique : ce dépôt public repart d’un instantané ; l’historique de dé
 
 - Erreur sur une fiche : formulaire « Suggérer une correction » de la fiche, ou `contact@laureati.fr`. Les données de `data/export/` ne se corrigent pas par une PR.
 - Code : PR bienvenues vers `main` ; la CI (build, tests, contrôle visuel) doit passer. Les issues sont désactivées.
-- Aucune licence n’est accordée à ce stade : code, textes et données restent sous réserve de tous droits (voir les mentions légales du site).
+- Licence : voir la section ci-dessous. Une contribution au code est publiée sous la même licence MIT.
+
+## Licence
+
+- Code : licence MIT (`LICENSE`), copyright 2026 Romain Nicault. Périmètre détaillé : `NOTICE.md`.
+- Hors licence, droits réservés : textes éditoriaux, données (export, médailles, scores, rangs, coordonnées des vignerons), visuels et éléments de marque (`assets/brand/`, `public/brand/`) et charte (`DESIGN.md`). Leur reproduction exige un accord écrit. Les palmarès restent soumis aux droits de leurs producteurs.
+- Polices : SIL Open Font License 1.1, textes dans `public/fonts/`.
+- Données géographiques : licences de leurs producteurs, détaillées dans `data/geo/LICENCE.md`.
 
 ## Développement et vérification
 
