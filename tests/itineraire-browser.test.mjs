@@ -49,7 +49,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
-  const calls = [], local = [], thirdParties = []; let clicked = false, verified = false, mapsDown = false, busyDuringRoute; const busyDuringMap = [];
+  const calls = [], local = [], thirdParties = []; let clicked = false, verified = false, mapsDown = false, routeFail = false, busyDuringRoute; const busyDuringMap = [];
   const mocked = new Set(['places.googleapis.com', 'maps.googleapis.com', 'routes.googleapis.com', 'challenges.cloudflare.com']);
   // Garde général d'abord (dernière route enregistrée = première exécutée) : tout hôte tiers avant le clic est bloqué et noté.
   async function guard(context) {
@@ -60,6 +60,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await context.route('https://routes.googleapis.com/**', async route => {
       assert.equal(verified, true, 'Turnstile vérifié avant Routes');
       calls.push({ kind: 'route', body: route.request().postDataJSON(), mask: route.request().headers()['x-goog-fieldmask'] });
+      if (routeFail) return route.fulfill({ status: 400, json: { error: { code: 400, message: 'test' } } });
       busyDuringRoute = await route.request().frame().page().evaluate(() => { const b = document.querySelector('#calculer'); return { disabled: b.disabled, busy: b.getAttribute('aria-busy'), text: b.textContent, trajet: document.querySelector('[data-step="trajet"]').dataset.state, robot: document.querySelector('[data-step="robot"]').dataset.state }; });
       await route.fulfill({ json: { routes: [{ distanceMeters: 585000, staticDuration: '19800s', polyline: { encodedPolyline: encode(PATH) }, legs: [{ steps: [{ distanceMeters: 300000, staticDuration: '10000s' }, { distanceMeters: 285000, staticDuration: '9800s' }] }] }] } });
     });
@@ -366,6 +367,18 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     const n = calls.length; await page.locator('#arrivee').fill('Bordeaux'); await page.waitForTimeout(600);
     assert.equal(calls.length, n);
     assert.deepEqual(thirdParties, [], `Domaines tiers inattendus : ${thirdParties.join(', ')}`);
+
+    // Accord donné par Entrée, focus resté dans le champ, Routes en échec puis frappe : suggestions sans carte statique, attribution visible.
+    await page.evaluate(() => sessionStorage.removeItem('laureati-recherches'));
+    clicked = true; routeFail = true; const routes = count('route');
+    await page.locator('#depart').fill('Paris'); await page.locator('#arrivee').fill('Nulle part'); await page.locator('#arrivee').press('Enter');
+    while (count('route') === routes) await page.waitForTimeout(50);
+    await page.waitForFunction(() => document.querySelector('#calculer')?.getAttribute('aria-busy') === 'false');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'arrivee', 'focus resté dans le champ');
+    await page.locator('#arrivee').fill('Borde'); await page.locator('#arrivee-suggestions button').waitFor();
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible()], [false, false], 'suggestions après Entrée sans carte');
+    assert.equal(await page.locator('#google-attribution').isVisible(), true, 'attribution avec les suggestions');
+    routeFail = false; clicked = false;
     await context.close();
 
     // Adresse partagée, appareil neuf : champs préremplis, zéro requête tierce, le calcul attend « Calculer ».

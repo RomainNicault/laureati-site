@@ -59,13 +59,14 @@ for (const id of ['depart', 'arrivee']) {
   const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); };
   resetSuggestions[id] = () => { clearTimeout(timer); sequence++; list.replaceChildren(); close(); };
   // Focus avec accord : suggestions Places possibles, plus aucune carte visible jusqu'au trajet affiché.
-  input.addEventListener('focus', () => { if (consent && key) { token ||= crypto.randomUUID(); el('google-attribution').hidden = false; placesStarted = true; layout(); } });
+  input.addEventListener('focus', () => { if (consent && key) { token ||= crypto.randomUUID(); startPlaces(); } });
   input.addEventListener('input', () => {
     if (chosen[id]?.label !== input.value) { delete chosen[id]; layout(); }
     clearTimeout(timer); const serial = ++sequence;
     list.replaceChildren(); close();
     if (!consent || !key || input.value.trim().length < 3) return;
-    token ||= crypto.randomUUID();
+    // Accord donné sans nouveau focus (Entrée, puis frappe) : la carte se masque avant toute suggestion.
+    token ||= crypto.randomUUID(); startPlaces();
     timer = setTimeout(async () => {
       try {
         const response = await fetch('https://places.googleapis.com/v1/places:autocomplete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text.text' }, body: JSON.stringify({ input: input.value, sessionToken: token, includedRegionCodes: ['fr', 'ch', 'it', 'be', 'lu', 'de', 'es', 'mc', 'ad'], languageCode: 'fr' }) });
@@ -128,6 +129,11 @@ interface Trip { query: TripQuery; route: SavedRoute; path: Point[]; samples: Re
 let trip: Trip | undefined, data: RouteData | undefined, regionsGeo: GeoFeature[] = [];
 // Affichage dérivé de l'état (pageLayout) : saisie ouverte, suggestions Places possibles, carte Google chargée ou non.
 let placesStarted = false, formOpen = true, mapState: 'none' | 'shown' | 'failed' = 'none';
+/** Suggestions Places possibles : attribution visible et plus aucune carte jusqu'au trajet affiché (EEE, Places 15.1). */
+function startPlaces() {
+  el('google-attribution').hidden = false;
+  if (!placesStarted) { placesStarted = true; layout(); }
+}
 const placesLabel = () => (['depart', 'arrivee'] as const).some(id => chosen[id] !== undefined && chosen[id]!.label === el<HTMLInputElement>(id).value);
 function layout() {
   const v = pageLayout({ trip: !!trip, formOpen, placesStarted, placesLabel: placesLabel(), map: mapState });
@@ -490,6 +496,8 @@ el('trajet').addEventListener('submit', async event => {
   if (!allowed) { status('Limite de 10 recherches par session atteinte. Les listes restent accessibles.', true); return; }
   // Le clic vaut accord : mémorisé sur l'appareil, sans cookie.
   consent = true; try { localStorage.setItem(consentKey, 'oui'); } catch { /* accord limité à la page */ } showConsent();
+  // Focus resté dans un champ : la frappe suivante peut appeler Places, la carte statique se masque dès maintenant.
+  if (['depart', 'arrivee'].includes(document.activeElement?.id ?? '')) startPlaces();
   setBusy(true); resetSteps(); closePanel();
   let current: Step = 'robot';
   try {
