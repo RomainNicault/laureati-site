@@ -31,6 +31,9 @@ test('les pages légales sont complètes, liées au pied de page et sans tiret l
   const mentions = read('dist/mentions-legales/index.html');
   const confidentialite = read('dist/confidentialite/index.html');
   for (const expected of ['contact@laureati.fr', 'Cloudflare, Inc.', '101 Townsend St', 'Romain Nicault', 'Droit de réponse', 'site indépendant', 'aucun visuel officiel de médaille', 'Licence Ouverte 1.0', 'DRAAF', 'Google Places', 'place_id']) assert.ok(mentions.includes(expected), expected);
+  // Code sous MIT, lien vers le dépôt ; textes, visuels et données réservés ; retrait sous 7 jours pour un concours.
+  for (const expected of ['licence MIT (Massachusetts Institute of Technology)', 'href="https://github.com/RomainNicault/laureati-site"', 'Cette licence couvre le code seul.', 'restent réservés', 'retirés du site sous 7 jours']) assert.ok(mentions.includes(expected), expected);
+  assert.doesNotMatch(mentions, /la mise en page et le code du site sont des créations originales/);
   // Google n’apparaît que comme source de l’identifiant de lieu (place_id).
   assert.doesNotMatch(mentions.replaceAll('Google Places', ''), /Google/);
   assert.doesNotMatch(mentions, /publie seulement les coordonnées/);
@@ -47,6 +50,11 @@ test('les pages légales sont complètes, liées au pied de page et sans tiret l
   for (const field of ['page concernée', 'champ à corriger', 'valeur proposée', 'commentaire', 'contact', 'date et l’heure', 'empreinte de votre adresse IP', 'statut']) {
     assert.ok(confidentialite.includes(field), field);
   }
+  // Destinataires des fiches : public, Cloudflare, GitHub (dépôt privé, jamais dit public) ; retrait sous 7 jours.
+  for (const expected of ['le public, qui consulte les pages du site', 'Cloudflare, Inc., qui héberge le site', 'GitHub, Inc.', 'dépôt privé', 'acceptée sans justification et appliquée sous 7 jours']) {
+    assert.ok(confidentialite.includes(expected), expected);
+  }
+  assert.doesNotMatch(text(confidentialite), /dépôt public|dépôt GitHub public/);
   for (const expected of ['aucun cookie', 'score et un rang', 'sans condition', 'place_id', '12 mois', 'Cloudflare D1', 'CNIL (Commission nationale', 'intérêt légitime', 'RGPD', 'Turnstile', 'pré-autorisation', 'signaux']) {
     assert.ok(confidentialite.includes(expected), expected);
   }

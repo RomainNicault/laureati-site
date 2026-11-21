@@ -42,12 +42,12 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch();
-  const calls = [], local = [], thirdParties = []; let clicked = false, verified = false, busyDuringRoute; const busyDuringMap = [];
+  const calls = [], local = [], thirdParties = []; let clicked = false, verified = false, mapsDown = false, busyDuringRoute; const busyDuringMap = [];
   const mocked = new Set(['places.googleapis.com', 'maps.googleapis.com', 'routes.googleapis.com', 'challenges.cloudflare.com']);
   // Garde général d'abord (dernière route enregistrée = première exécutée) : tout hôte tiers avant le clic est bloqué et noté.
   async function guard(context) {
     await context.route('https://places.googleapis.com/**', async route => { calls.push({ kind: 'autocomplete', body: route.request().postDataJSON() }); await route.fulfill({ json: { suggestions: [{ placePrediction: { placeId: 'lieu-test', text: { text: 'Bordeaux, France' } } }] } }); });
-    await context.route('https://maps.googleapis.com/**', async route => { calls.push({ kind: 'map' }); busyDuringMap.push(await route.request().frame().page().evaluate(() => { const b = document.querySelector('#calculer'); return [b.disabled, b.textContent]; })); await route.fulfill({ contentType: 'text/javascript', body: MAPS_STUB }); });
+    await context.route('https://maps.googleapis.com/**', async route => { if (mapsDown) { calls.push({ kind: 'map-echec' }); return route.abort(); } calls.push({ kind: 'map' }); busyDuringMap.push(await route.request().frame().page().evaluate(() => { const b = document.querySelector('#calculer'); return [b.disabled, b.textContent]; })); await route.fulfill({ contentType: 'text/javascript', body: MAPS_STUB }); });
     await context.route('https://challenges.cloudflare.com/**', async route => { calls.push({ kind: 'turnstile' }); await route.fulfill({ contentType: 'text/javascript', body: 'window.turnstile={render:(el,o)=>o.callback("jeton-test")};' }); });
     await context.route('**/api/turnstile', async route => { served.push(`${route.request().url()} ${route.request().headers().referer ?? ''}`); calls.push({ kind: 'verify' }); verified = true; await route.fulfill({ json: { ok: true } }); });
     await context.route('https://routes.googleapis.com/**', async route => {
@@ -74,6 +74,8 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     assert.deepEqual(thirdParties, [], `Domaines tiers avant le clic : ${thirdParties.join(', ')}`);
     assert.equal(calls.length, 0);
     assert.equal(await page.locator('#arrivee-suggestions').isVisible(), false);
+    // Sans trajet : carte statique Laureati affichée, aucune liste.
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#arbre-trajet').isVisible()], [true, false]);
     assert.ok(!local.some(p => p.includes('/itineraire/geo/') || p.endsWith('donnees.json')), 'géo et données chargées seulement après le clic');
     for (const host of ['nouveau.googleapis.com', 'tiers.example.org']) { await page.evaluate(h => fetch(`https://${h}/sonde`).catch(() => {}), host); assert.equal(thirdParties.pop(), host); }
 
@@ -86,6 +88,8 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     assert.equal(await page.evaluate(() => localStorage.getItem('laureati-google-maps-v1')), 'oui', 'le clic mémorise l’accord');
     const routeCall = calls.find(c => c.kind === 'route');
     assert.equal(count('route'), 1); assert.equal(count('map'), 1);
+    // Carte Google affichée avec la liste : la carte statique est masquée (pas de régression de la carte Google).
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#arbre-trajet').isVisible()], [false, true, true]);
     assert.deepEqual([routeCall.body.origin, routeCall.body.destination], [{ address: 'Paris' }, { address: 'Bordeaux' }], 'géocodage par Routes, sans appel Places');
     assert.equal(routeCall.body.routingPreference, 'TRAFFIC_UNAWARE');
     assert.match(routeCall.mask, /routes\.legs\.steps\.staticDuration/);
@@ -244,7 +248,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await page.locator('#calculer').click(); assert.match(await page.locator('#etat-trajet').textContent(), /Limite de 10/);
     assert.equal(count('route'), 1);
 
-    // Plafond de 20 cartes Google par session : au-delà, arbre et carte statique, bouton soumis au même plafond.
+    // Plafond de 20 cartes Google par session : au-delà, liste seule (carte statique masquée), bouton soumis au même plafond.
     const mapsBefore = count('map'), etat = () => page.locator('#etat-trajet').textContent();
     await page.evaluate(() => sessionStorage.setItem('laureati-cartes', '20'));
     await page.reload(); await page.waitForFunction(() => /Limite de 20 cartes/.test(document.querySelector('#etat-trajet')?.textContent ?? ''));
@@ -253,16 +257,25 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await page.locator('#couloir').fill('25'); await page.locator('#couloir').dispatchEvent('change');
     await page.waitForFunction(() => location.hash.includes('couloir=25'));
     assert.match(await etat(), /Limite de 20 cartes/);
-    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible()], [true, false, true]);
+    // Conditions Google Maps Platform (3.2.3(e), 19.2) : liste issue de Routes jamais à côté de la carte statique Laureati.
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible(), await page.locator('#arbre-trajet').isVisible()], [false, false, true, true]);
     assert.ok(await page.locator('#arbre details.tree-region').count() > 0, 'arbre restauré sans carte');
     await page.locator('#charger-carte').click(); await page.waitForFunction(() => !document.querySelector('#calculer').disabled);
     assert.match(await etat(), /Limite de 20 cartes/); assert.equal(count('map'), mapsBefore, 'bouton refusé au plafond');
     await page.evaluate(() => sessionStorage.setItem('laureati-cartes', '19'));
     await page.locator('#charger-carte').click(); await page.waitForFunction(() => document.querySelector('#etat-trajet')?.textContent?.startsWith('Carte Google affichée'));
     assert.equal(count('map'), mapsBefore + 1);
-    assert.deepEqual([await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible()], [true, false]);
+    assert.deepEqual([await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible(), await page.locator('#carte-statique').isVisible()], [true, false, false]);
     assert.ok(await page.locator('#arbre .act-map').count() > 0, 'arbre redessiné avec « Sur la carte »');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('laureati-cartes')), '20');
+    await page.evaluate(() => sessionStorage.removeItem('laureati-cartes'));
+    // Échec du chargement de la carte Google : liste seule, carte statique masquée, bouton pour réessayer.
+    mapsDown = true;
+    await page.reload(); await page.waitForFunction(() => /Carte Google indisponible/.test(document.querySelector('#etat-trajet')?.textContent ?? ''));
+    assert.ok(count('map-echec') >= 1); assert.equal(count('map'), mapsBefore + 1, 'aucune carte chargée');
+    assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible(), await page.locator('#charger-carte').isVisible(), await page.locator('#arbre-trajet').isVisible()], [false, false, true, true]);
+    assert.ok(await page.locator('#arbre details.tree-region').count() > 0, 'liste affichée sans carte');
+    mapsDown = false;
     await page.evaluate(() => sessionStorage.removeItem('laureati-cartes'));
 
     // Accord mémorisé : suggestions Places pendant la saisie, choix transmis par placeId.
@@ -293,6 +306,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await other.goto(`${origin}/itineraire/#depart=Paris&arrivee=Bordeaux%2C+France&arrivee_id=lieu-test&couloir=15`); await other.waitForLoadState('networkidle');
     assert.deepEqual(await other.evaluate(() => [document.querySelector('#depart').value, document.querySelector('#arrivee').value, document.querySelector('#couloir').value, document.querySelector('#distance-couloir').textContent]), ['Paris', 'Bordeaux, France', '15', '15 km']);
     assert.match(await other.locator('#etat-trajet').textContent(), /Cliquez sur « Calculer »/);
+    assert.equal(await other.locator('#carte-statique').isVisible(), true, 'trajet prérempli sans calcul : carte statique affichée');
     if (process.env.CAPTURES) await other.screenshot({ path: `${process.env.CAPTURES}/bureau-lien-partage.png` });
     assert.deepEqual(thirdParties, []); assert.equal(calls.length, n);
     assert.ok(!local.some(p => p.includes('/itineraire/geo/') || p.endsWith('donnees.json')));

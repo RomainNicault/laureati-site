@@ -373,6 +373,9 @@ async function render() {
   root.dataset.geo = crossed.join(' ');
   if (maps && map) draw(regionsGeo.filter(f => regionEntries.has(f.properties.slug)), visibleAreas, tree);
   renderTree(tree);
+  // Liste issue de Routes affichée : jamais à côté d'une carte non Google (conditions Google Maps Platform,
+  // 3.2.3(e) et 19.2). La carte statique Laureati est masquée, avec ou sans carte Google.
+  el('carte-statique').hidden = true;
   el('arbre-trajet').hidden = false;
 }
 
@@ -409,7 +412,7 @@ el('couloir').addEventListener('change', () => {
 });
 
 /** Carte Google du trajet courant. Faux si le plafond de session est atteint ou si Google ne répond pas :
- * la carte statique reste affichée, avec un bouton pour réessayer (même plafond). */
+ * bouton pour réessayer (même plafond). La carte statique est masquée par render() dès que la liste s'affiche. */
 async function showMap(mapsReady: Promise<any>): Promise<{ ok: boolean; message?: string }> {
   try {
     maps = await mapsReady;

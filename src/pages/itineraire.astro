@@ -15,7 +15,7 @@ const steps=[['robot','Anti-robot'],['trajet','Trajet'],['vignerons','Vignerons'
     <form id="trajet" class="route-form" aria-labelledby="trajet-titre">
       <h2 id="trajet-titre" class="sr-only">Votre trajet</h2>
       <div class="route-fields">{fields.map(([id,label,placeholder])=><div class="route-field"><label for={id}>{label}</label><input id={id} name={id} placeholder={placeholder} autocomplete="off" required minlength="2" maxlength="200" aria-autocomplete="list" aria-controls={`${id}-suggestions`} aria-expanded="false" role="combobox"/><ul id={`${id}-suggestions`} class="route-suggestions" role="listbox" aria-label={`Suggestions : ${label}`} hidden></ul></div>)}</div>
-      <p id="google-attribution" class="note" hidden>Powered by Google</p>
+      <p id="google-attribution" class="note" hidden>Google Maps</p>
       <div class="route-go">
         <button id="calculer" class="btn btn--primary route-submit" type="submit" aria-describedby="mention-google" aria-busy="false"><span class="route-submit__label">Calculer</span></button>
         <p id="mention-google" class="note route-mention">Calculer envoie vos adresses et votre IP à Google, avec un contrôle anti-robot Cloudflare. <a href="/confidentialite/#itineraire">Confidentialité</a></p>

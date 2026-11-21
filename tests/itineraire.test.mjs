@@ -169,7 +169,10 @@ test('page itinéraire : promesse, saisie compacte, accord au clic, couloir sous
   assert.match(choix, /Google activé sur cet appareil, sans cookie\./);
   assert.match(choix, />Oublier<\/button>/);
   assert.match(choix, /href="\/confidentialite\/#itineraire"/);
-  assert.match(main, /<p id="google-attribution"[^>]*>Powered by Google<\/p>/);
+  assert.match(main, /<p id="google-attribution"[^>]*>Google Maps<\/p>/);
+  assert.doesNotMatch(page, /Powered by Google/);
+  // Sans trajet, la carte statique est affichée (masquée seulement quand une liste Routes s'affiche).
+  assert.match(main, /<figure id="carte-statique"(?![^>]*\bhidden\b)[^>]*>/);
   assert.match(mention, /href="\/confidentialite\/#itineraire"/);
   assert.ok(mention.replace(/<[^>]+>/g, '').length <= 110, 'mention courte');
   assert.ok(main.indexOf('id="carte-cadre"') < main.indexOf('id="couloir"') && main.indexOf('id="couloir"') < main.indexOf('id="arbre-trajet"'), 'couloir sous la carte');

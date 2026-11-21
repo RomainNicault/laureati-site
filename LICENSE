@@ -1,0 +1,48 @@
+MIT License
+
+Copyright (c) 2026 Romain Nicault
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+Périmètre de la licence
+
+La licence MIT ci-dessus couvre uniquement le code source de ce dépôt.
+
+Ne sont pas couverts et restent réservés, tous droits réservés à Romain Nicault
+sauf droits de tiers :
+- les textes éditoriaux du site (pages, textes d'appellations, de régions et de
+  concours, méthodologie) ;
+- les données publiées par le site : export des vignerons, médailles, scores,
+  rangs et coordonnées, y compris celles récupérées au build depuis le dépôt
+  privé de données. Les palmarès restent soumis aux droits de leurs
+  producteurs ;
+- les visuels et éléments de marque (`assets/brand/`, `public/brand/`, logo,
+  icônes) ;
+- la charte graphique (`DESIGN.md`).
+
+Ces éléments ne peuvent être reproduits ni réutilisés sans accord écrit, hors
+exceptions prévues par la loi.
+
+Composants de tiers, sous leur propre licence :
+- polices Cormorant Garamond et Work Sans : SIL Open Font License 1.1, textes
+  dans `public/fonts/` ;
+- données géographiques (`data/geo/`) : licences indiquées dans
+  `data/geo/LICENCE.md`.
