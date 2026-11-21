@@ -378,7 +378,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     await page.locator('#arrivee').fill('Borde'); await page.locator('#arrivee-suggestions button').waitFor();
     assert.deepEqual([await page.locator('#carte-statique').isVisible(), await page.locator('#carte-cadre').isVisible()], [false, false], 'suggestions après Entrée sans carte');
     assert.equal(await page.locator('#google-attribution').isVisible(), true, 'attribution avec les suggestions');
-    routeFail = false; clicked = false;
+    routeFail = false; clicked = false; const avantPartage = calls.length;
     await context.close();
 
     // Adresse partagée, appareil neuf : champs préremplis, zéro requête tierce, le calcul attend « Calculer ».
@@ -390,7 +390,7 @@ test('navigateur : zéro requête tierce avant « Calculer », progression, cart
     // Libellé issu d'une suggestion (arrivee_id) : contenu Places, carte statique masquée même sans accord.
     assert.deepEqual(await zones(other), { saisie: true, 'trajet-resume': false, 'carte-statique': false, 'carte-cadre': false, 'carte-charger': false, 'arbre-trajet': false });
     await shot(other, 'bureau-lien-partage', false);
-    assert.deepEqual(thirdParties, []); assert.equal(calls.length, n);
+    assert.deepEqual(thirdParties, []); assert.equal(calls.length, avantPartage);
     assert.ok(!local.some(p => p.includes('/itineraire/geo/') || p.endsWith('donnees.json')));
     clicked = true; await other.locator('#calculer').click(); await other.waitForFunction(() => document.querySelector('#etat-trajet')?.textContent?.startsWith('Trajet calculé'));
     const last = calls.filter(c => c.kind === 'route').at(-1).body;
