@@ -105,6 +105,7 @@
     "commune": "Commune Exemple",
     "code_postal": "01000",
     "vigneron_independant": false,
+    "groupe": "Maison Exemple",
     "score": 5.0,
     "appellations": [
       {

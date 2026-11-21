@@ -13,6 +13,8 @@ export interface Producer {
   commune?: string; code_postal?: string; adresse?: string;
   latitude?: number; longitude?: number; google_place_id?: string | null; site?: string; telephone?: string;
   vigneron_independant: boolean; score: number;
+  /** Groupe ou négociant détenteur d'un domaine vigneron. Absent d'un domaine indépendant. */
+  groupe?: string;
   /** Type déduit de la dénomination quand probable = true. Absent d'un export antérieur. */
   type_producteur?: { valeur: string; probable: boolean } | null;
   appellations: ProducerAppellation[]; medailles: Medal[];

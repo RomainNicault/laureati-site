@@ -40,7 +40,7 @@ const place = displayPlace(producer.commune) ?? 'Commune non renseignée';
   {detail && <details class="rank-row__more">
     <summary>Détail<span class="sr-only"> : {producer.nom}</span>{span && <span class="rank-row__span"> · médailles {span}</span>}</summary>
     <div class="rank-row__body">
-      <p class="rank-row__facts">{type && <span>{type}</span>}{producer.vigneron_independant && <span class="flag-indep">Vigneron Indépendant</span>}</p>
+      <p class="rank-row__facts">{type && <span>{type}</span>}{producer.vigneron_independant && <span class="flag-indep">Vigneron Indépendant</span>}{producer.groupe && <span class="flag-groupe" title={`Domaine détenu par ${producer.groupe}`}>Groupe<span class="sr-only"> {producer.groupe}</span></span>}</p>
       {!phone && <p class="note contact-missing">Téléphone non renseigné</p>}
       {website && <p><a class="act-site" href={website}>Site : {hostOf(website)}<span class="sr-only"> ({producer.nom})</span></a></p>}
       {medals.length > 0 && <ul class="rank-row__medals">{sortMedals(medals).map(m => {

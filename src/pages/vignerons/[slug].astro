@@ -38,7 +38,7 @@ const competitionIds = [...new Set(producer.medailles.map(m => m.concours_id))];
 <BaseLayout bleed title={`${producer.nom} : classements et médailles`} description={`${producer.nom}${place ? `, ${(type ?? 'vigneron').replace(' (probable)', '').toLowerCase()} à ${place}` : ''}. Appellations classées, médailles recensées et coordonnées.`} searchable structuredData={winery} breadcrumbs={crumbs} bodyClass="has-action-bar">
   <header class="container profile-head">
     <h1>{producer.nom}</h1>
-    <p class="profile-id"><span><Icon name="pin" />{place ?? 'Commune non renseignée'}{producer.code_postal && ` (${producer.code_postal})`}</span>{type && <span class="profile-type">{type}</span>}{producer.vigneron_independant && <span class="flag-indep">Vigneron Indépendant</span>}</p>
+    <p class="profile-id"><span><Icon name="pin" />{place ?? 'Commune non renseignée'}{producer.code_postal && ` (${producer.code_postal})`}</span>{type && <span class="profile-type">{type}</span>}{producer.vigneron_independant && <span class="flag-indep">Vigneron Indépendant</span>}{producer.groupe && <span class="flag-groupe" title={`Domaine détenu par ${producer.groupe}`}>Groupe<span class="sr-only"> {producer.groupe}</span></span>}</p>
     {summary && <p class="profile-summary">{summary}</p>}
     <Actions producer={producer} />
     <div class="contact-strip">

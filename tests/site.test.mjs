@@ -62,6 +62,8 @@ test('la fiche suit les positions exportées et réserve la correction', () => {
     }
     if (p.telephone) assert.ok(page.includes('href="tel:'));
     if (p.vigneron_independant) assert.ok(page.includes('Vigneron Indépendant'));
+    if (p.groupe) assert.ok(page.includes(`Domaine détenu par ${p.groupe}`));
+    else assert.ok(!page.includes('class="flag-groupe"'));
     const scores = [...page.matchAll(/data-position-score="([^"]+)"/g)].map(m => Number(m[1]));
     assert.deepEqual(scores, [...p.appellations].sort((a,b) => b.score-a.score).map(x => x.score));
     for (const position of p.appellations) {
