@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { buildTree, corridorEntries, corridorEntry, decodePolyline, famille, formatDuration, locate, parseTripQuery, pathLengthKm, producerCard, readSavedTrip, resample, sameTrip, simplifyGeometry, takeMapLoad, takeSearch, timeline, tripQuery, vertexCount, zoomBand } from '../src/lib/itineraire.ts';
+import { buildTree, corridorEntries, corridorEntry, decodePolyline, famille, formatAlong, formatDuration, locate, pageLayout, parseTripQuery, pathLengthKm, producerCard, readSavedTrip, resample, sameTrip, simplifyGeometry, takeMapLoad, takeSearch, tripQuery, vertexCount, zoomBand, ROUTES_FIELD_MASK } from '../src/lib/itineraire.ts';
 import { routeLinks } from '../src/lib/ui.ts';
 import * as ui from '../src/lib/ui.ts';
 import { dataset } from '../src/lib/data.ts';
@@ -93,18 +93,50 @@ test('adresse de partage : libellés, lieux, couloir ; valeurs invalides écart�
   // Sauvegarde de session : relue seulement si complète.
   const saved = { v: 1, trip: q, route: { polyline: '_p~iF~ps|U', distanceMeters: 585000, staticDuration: '20000s', steps: [{ distanceMeters: 585000, staticDuration: '20000s' }] } };
   assert.equal(readSavedTrip(JSON.stringify(saved)).route.polyline, '_p~iF~ps|U');
+  // Étapes d'une ancienne sauvegarde jamais relues (conditions EEE, Routes).
+  assert.deepEqual(readSavedTrip(JSON.stringify(saved)).route, { polyline: '_p~iF~ps|U', distanceMeters: 585000, staticDuration: '20000s' });
+  assert.equal(readSavedTrip(JSON.stringify({ ...saved, route: { polyline: '_p~iF~ps|U' } })).route.polyline, '_p~iF~ps|U', 'sauvegarde sans étapes relue');
   for (const raw of [null, '', '{', JSON.stringify({ ...saved, v: 2 }), JSON.stringify({ ...saved, route: { steps: [] } }), JSON.stringify({ ...saved, trip: { depart: 'P' } })]) assert.equal(readSavedTrip(raw), undefined, String(raw));
 });
 
-test('familles de couleur et temps depuis le départ', () => {
+test('familles de couleur, distance depuis le départ (polyligne) et durée totale', () => {
   assert.deepEqual(['Rouge', 'Blanc floral', 'Gris de Gris', 'Effervescent rosé', 'Vin de paille', 'Demi-sec', 'Jaune', 'Poiré'].map(famille), ['Rouge', 'Blanc', 'Rosé', 'Effervescent', 'Doux', 'Doux', 'Jaune', 'Cidre']);
-  const at = timeline([{ distanceMeters: 1000, staticDuration: '60s' }, { distanceMeters: 99000, staticDuration: '3540s' }], 100);
-  assert.equal(at(0), 0);
-  assert.equal(at(1), 60);
-  assert.equal(at(100), 3600);
-  assert.equal(formatDuration(at(100)), '1 h');
+  assert.deepEqual([0, 2.4, 2.6, 118, 122.6, 585].map(formatAlong), ['À moins de 5 km du départ', 'À moins de 5 km du départ', 'À 5 km du départ', 'À 120 km du départ', 'À 125 km du départ', 'À 585 km du départ']);
+  assert.equal(formatAlong(Infinity), '');
+  // Repère tiré du tracé seul : kilomètre de la projection sur la polyligne.
+  assert.equal(formatAlong(locate({ lat: 46.0899, lng: 3 }, line).alongKm), `À ${Math.round(pathLengthKm([line[0], { lat: 46, lng: 3 }]) / 5) * 5} km du départ`);
+  assert.equal(formatDuration(3600), '1 h');
   assert.equal(formatDuration(130 * 60), '2 h 10');
   assert.equal(formatDuration(33 * 60), '35 min');
+});
+
+test('Routes : masque de champs sans étapes ni description (conditions EEE, With any Map)', () => {
+  assert.equal(ROUTES_FIELD_MASK, 'routes.distanceMeters,routes.staticDuration,routes.polyline.encodedPolyline');
+  assert.doesNotMatch(ROUTES_FIELD_MASK, /steps|legs|description|navigationInstruction|localizedValues|\*/);
+  // Bundle construit : aucun masque ni code ne demande les étapes.
+  const bundles = [...readdirSync('dist/_astro').filter(f => f.endsWith('.js')).map(f => readFileSync(`dist/_astro/${f}`, 'utf8')), readFileSync('dist/itineraire/index.html', 'utf8')];
+  assert.ok(bundles.some(b => b.includes(ROUTES_FIELD_MASK)), 'masque présent dans le bundle');
+  assert.ok(bundles.every(b => !/legs\.steps|\.steps\b/.test(b)), 'aucune lecture des étapes dans le bundle');
+});
+
+test('affichage selon l’état : aucune carte pendant la saisie, résumé sans lieux avec la carte, liste seule sans carte', () => {
+  const base = { trip: false, formOpen: true, placesStarted: false, placesLabel: false, map: 'none' };
+  // Arrivée sur la page, sans saisie Places : carte statique seule.
+  assert.deepEqual(pageLayout(base), { saisie: true, resume: false, statique: true, carte: false, charger: false });
+  // Focus avec accord (suggestions possibles) ou libellé Places dans un champ : aucune carte.
+  assert.deepEqual(pageLayout({ ...base, placesStarted: true }), { saisie: true, resume: false, statique: false, carte: false, charger: false });
+  assert.deepEqual(pageLayout({ ...base, placesLabel: true }), { saisie: true, resume: false, statique: false, carte: false, charger: false });
+  // Trajet affiché avec la carte Google : résumé, saisie masquée, jamais de carte statique.
+  const trip = { ...base, trip: true, formOpen: false, placesStarted: true, placesLabel: true };
+  assert.deepEqual(pageLayout({ ...trip, map: 'shown' }), { saisie: false, resume: true, statique: false, carte: true, charger: false });
+  // Plafond de cartes ou échec : liste seule, bouton de chargement, sans carte.
+  assert.deepEqual(pageLayout({ ...trip, map: 'failed' }), { saisie: false, resume: true, statique: false, carte: false, charger: true });
+  // « Modifier le trajet » : saisie rouverte, aucune carte, même chargée.
+  for (const map of ['none', 'shown', 'failed']) assert.deepEqual(pageLayout({ ...trip, formOpen: true, map }), { saisie: true, resume: false, statique: false, carte: false, charger: false });
+  for (const placesStarted of [false, true]) for (const placesLabel of [false, true]) for (const map of ['none', 'shown', 'failed']) for (const formOpen of [false, true]) {
+    const v = pageLayout({ trip: true, formOpen, placesStarted, placesLabel, map });
+    assert.ok(!v.statique && !(v.saisie && (v.carte || v.statique)), JSON.stringify(v));
+  }
 });
 
 test('polyligne Google décodée sans appel externe', () => {
@@ -170,6 +202,14 @@ test('page itinéraire : promesse, saisie compacte, accord au clic, couloir sous
   assert.match(choix, />Oublier<\/button>/);
   assert.match(choix, /href="\/confidentialite\/#itineraire"/);
   assert.match(main, /<p id="google-attribution"[^>]*>Google Maps<\/p>/);
+  // Attribution hors carte Google : « Google Maps » non traduit, sous les champs et dans l'en-tête de la liste.
+  assert.match(main, /<p id="google-attribution"[^>]*translate="no"[^>]*>Google Maps<\/p>/);
+  const arbre = main.slice(main.indexOf('id="arbre-trajet"'));
+  assert.match(arbre.slice(0, arbre.indexOf('id="resume-trajet"')), /<header[^>]*>\s*<h2 id="arbre-titre"[^>]*>Sur votre trajet<\/h2>\s*<span id="attribution-trajet"[^>]*translate="no"[^>]*>Google Maps<\/span>\s*<\/header>/);
+  // Résumé sans nom de lieu, masqué tant qu'aucun trajet n'est affiché ; saisie dans son propre bloc.
+  assert.match(main, /<div id="trajet-resume"[^>]*hidden[^>]*>\s*<p id="resume-titre"[^>]*>Trajet calculé\.<\/p>\s*<button id="modifier-trajet"[^>]*>Modifier le trajet<\/button>/);
+  const saisie = main.slice(main.indexOf('id="saisie"'), main.indexOf('id="trajet-resume"'));
+  assert.ok(['id="depart"', 'id="arrivee"', 'id="calculer"', 'id="mention-google"', 'id="annuler-modification"'].every(x => saisie.includes(x)), 'champs, bouton et mention dans la saisie');
   assert.doesNotMatch(page, /Powered by Google/);
   // Sans trajet, la carte statique est affichée (masquée seulement quand une liste Routes s'affiche).
   assert.match(main, /<figure id="carte-statique"(?![^>]*\bhidden\b)[^>]*>/);
@@ -201,5 +241,7 @@ test('page itinéraire : promesse, saisie compacte, accord au clic, couloir sous
   assert.match(section, /adresse de la page : le départ, l’arrivée/);
   assert.match(section, /historique de votre navigateur et dans tout lien que vous copiez ou partagez/);
   assert.match(section, /vingt chargements de la carte Google/);
+  // GitHub : transfert vers les États-Unis encadré (certification Data Privacy Framework vérifiée le 21/11/2026).
+  assert.match(journaux, /GitHub, Inc\., établie aux États-Unis et adhérente au cadre de protection des données entre l’Union européenne et les États-Unis \(Data Privacy Framework\)/);
   assert.doesNotMatch(confidentialite.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' '), /[\u2013\u2014]/);
 });

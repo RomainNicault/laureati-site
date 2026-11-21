@@ -2,8 +2,10 @@
 // sur l'appareil (localStorage). Ensuite seulement, saisie automatique Places pendant la saisie.
 // Le résultat Routes est gardé en session (sessionStorage) : retour arrière et rechargement le restaurent
 // sans nouvel appel Routes ni Turnstile. L'adresse de la page porte le trajet (libellés, lieux, couloir).
-import { buildTree, corridorEntries, decodePolyline, formatDuration, geometryBounds, parseTripQuery, pathLengthKm, producerCard, readSavedTrip,
-  resample, sameTrip, simplifyGeometry, takeMapLoad, takeSearch, timeline, CARTES_MAX, tripQuery, vertexCount, zoomBand,
+// Conditions Google Maps Platform EEE : aucune carte pendant la saisie (suggestions Places possibles) ; trajet affiché
+// avec un résumé sans nom de lieu ; repères le long du trajet calculés depuis la polyligne, jamais depuis les étapes.
+import { buildTree, corridorEntries, decodePolyline, formatAlong, formatDuration, geometryBounds, pageLayout, parseTripQuery, pathLengthKm, producerCard, readSavedTrip,
+  resample, sameTrip, simplifyGeometry, takeMapLoad, takeSearch, CARTES_MAX, ROUTES_FIELD_MASK, tripQuery, vertexCount, zoomBand,
   type GeoFeature, type Point, type RouteData, type RouteProducer, type SavedRoute, type TreeRegion, type TreeRow, type TripQuery, type ZoomBand } from '../lib/itineraire';
 import { MEDAL_LABEL, MEDAL_ORDER, ordinalSuffix, producerActions } from '../lib/ui';
 import { formatScore } from '../lib/site';
@@ -49,13 +51,17 @@ function setBusy(on: boolean, text = 'Calcul en cours…') {
 
 // Choix d'une suggestion : identifiant de lieu transmis tel quel à Routes, sans appel Place Details.
 const chosen: Record<string, { placeId: string; label: string } | undefined> = {};
+/** Suggestions d'un champ annulées : minuterie, réponse en vol et liste. */
+const resetSuggestions: Record<string, () => void> = {};
 for (const id of ['depart', 'arrivee']) {
   const input = el<HTMLInputElement>(id), list = el(id + '-suggestions');
   let token = '', timer: ReturnType<typeof setTimeout>, sequence = 0;
   const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); };
-  input.addEventListener('focus', () => { if (consent && key) { token ||= crypto.randomUUID(); el('google-attribution').hidden = false; } });
+  resetSuggestions[id] = () => { clearTimeout(timer); sequence++; list.replaceChildren(); close(); };
+  // Focus avec accord : suggestions Places possibles, plus aucune carte visible jusqu'au trajet affiché.
+  input.addEventListener('focus', () => { if (consent && key) { token ||= crypto.randomUUID(); el('google-attribution').hidden = false; placesStarted = true; layout(); } });
   input.addEventListener('input', () => {
-    if (chosen[id]?.label !== input.value) delete chosen[id];
+    if (chosen[id]?.label !== input.value) { delete chosen[id]; layout(); }
     clearTimeout(timer); const serial = ++sequence;
     list.replaceChildren(); close();
     if (!consent || !key || input.value.trim().length < 3) return;
@@ -70,7 +76,7 @@ for (const id of ['depart', 'arrivee']) {
           const prediction = suggestion.placePrediction; if (!prediction) continue;
           const item = document.createElement('li'); item.setAttribute('role', 'option');
           const choice = document.createElement('button'); choice.type = 'button'; choice.textContent = prediction.text.text;
-          choice.addEventListener('click', () => { chosen[id] = { placeId: prediction.placeId, label: prediction.text.text }; input.value = prediction.text.text; token = ''; close(); input.focus(); });
+          choice.addEventListener('click', () => { chosen[id] = { placeId: prediction.placeId, label: prediction.text.text }; input.value = prediction.text.text; token = ''; close(); layout(); input.focus(); });
           item.append(choice); list.append(item);
         }
         list.hidden = !list.children.length; input.setAttribute('aria-expanded', String(!list.hidden));
@@ -118,8 +124,25 @@ function verifyHuman(): Promise<void> {
 }
 
 // État d'un trajet calculé. La largeur du couloir se recalcule localement.
-interface Trip { query: TripQuery; route: SavedRoute; path: Point[]; samples: ReturnType<typeof resample>; km: number; seconds: number; timeAt: (km: number) => number }
+interface Trip { query: TripQuery; route: SavedRoute; path: Point[]; samples: ReturnType<typeof resample>; km: number; seconds: number }
 let trip: Trip | undefined, data: RouteData | undefined, regionsGeo: GeoFeature[] = [];
+// Affichage dérivé de l'état (pageLayout) : saisie ouverte, suggestions Places possibles, carte Google chargée ou non.
+let placesStarted = false, formOpen = true, mapState: 'none' | 'shown' | 'failed' = 'none';
+const placesLabel = () => (['depart', 'arrivee'] as const).some(id => chosen[id] !== undefined && chosen[id]!.label === el<HTMLInputElement>(id).value);
+function layout() {
+  const v = pageLayout({ trip: !!trip, formOpen, placesStarted, placesLabel: placesLabel(), map: mapState });
+  el('saisie').hidden = !v.saisie; el('trajet-resume').hidden = !v.resume; el('annuler-ligne').hidden = !(trip && formOpen);
+  el('carte-statique').hidden = !v.statique;
+  el('carte-cadre').hidden = !v.carte; el('legende-carte').hidden = !v.carte; el('carte-charger').hidden = !v.charger;
+  if (v.saisie) root.dataset.mode = 'saisie'; else delete root.dataset.mode;
+}
+/** Champs remplis depuis un trajet (lien partagé, annulation) : identifiant de lieu repris s'il existe. */
+function fillFields(q: TripQuery) {
+  for (const id of ['depart', 'arrivee'] as const) {
+    const input = el<HTMLInputElement>(id), placeId = id === 'depart' ? q.departId : q.arriveeId;
+    resetSuggestions[id]?.(); input.value = q[id]; if (placeId) chosen[id] = { placeId, label: q[id] }; else delete chosen[id];
+  }
+}
 /** Trajet prérempli depuis le lien d'ouverture, tant qu'aucun trajet n'est affiché. */
 let prefilled: TripQuery | undefined;
 const aires = new Map<string, Promise<GeoFeature[]>>();
@@ -193,7 +216,7 @@ function draw(regions: GeoFeature[], areas: GeoFeature[], tree: TreeRegion[]) {
   regionLayer.addGeoJson({ type: 'FeatureCollection', features: lightRegions });
   regionLayer.addListener('click', (e: any) => {
     const slug = e.feature.getProperty('slug'), nom = e.feature.getProperty('nom'), r = regionInfo.get(slug);
-    const lines = r ? [`${plural(r.count, 'vigneron')} retenu${r.count > 1 ? 's' : ''}, ${plural(r.appellations.length, 'appellation')}.`, `À ${formatDuration(trip!.timeAt(r.alongKm))} du départ.`] : ['Aucun vigneron retenu dans ce couloir.'];
+    const lines = r ? [`${plural(r.count, 'vigneron')} retenu${r.count > 1 ? 's' : ''}, ${plural(r.appellations.length, 'appellation')}.`, `${formatAlong(r.alongKm)}.`] : ['Aucun vigneron retenu dans ce couloir.'];
     info.setContent(bubble(nom, lines, { href: `/regions/${slug}/`, text: `Page de la région` }, { bounds: e.feature.getProperty('bbox'), text: 'Voir les appellations' }));
     info.setPosition(e.latLng); info.open({ map });
   });
@@ -222,13 +245,13 @@ function draw(regions: GeoFeature[], areas: GeoFeature[], tree: TreeRegion[]) {
   applyBand(true);
 }
 
-function meta(seconds: number, familles: string[], count: number) {
+function meta(alongKm: number, familles: string[], count: number) {
   // Trois repères insécables : moment du trajet, couleurs, nombre de vignerons.
   const span = create('span', undefined, 'tree-meta'), s = count > 1 ? 's' : '';
   const colours = create('span');
   for (const f of familles) { const sw = create('span', undefined, 'swatch'); sw.dataset.tone = { Rouge: 'rouge', Blanc: 'blanc', Rosé: 'rose', Effervescent: 'bulles', Doux: 'liquoreux', Jaune: 'jaune', Cidre: 'cidre' }[f] ?? 'blanc'; sw.setAttribute('aria-hidden', 'true'); colours.append(sw); }
   colours.append(` ${familles.join(', ')}`);
-  span.append(create('span', `À ${formatDuration(seconds)} du départ`), colours, create('span', `${count} vigneron${s} classé${s}`));
+  span.append(create('span', formatAlong(alongKm)), colours, create('span', `${count} vigneron${s} classé${s}`));
   return span;
 }
 function tally(medals: number[]) {
@@ -329,13 +352,13 @@ function renderTree(tree: TreeRegion[]) {
   const list = create('ol', undefined, 'tree-list');
   for (const region of tree) {
     const li = create('li'), details = create('details', undefined, 'tree-region'); details.dataset.region = region.slug;
-    const summary = create('summary'); summary.append(create('span', region.nom, 'tree-name'), meta(trip!.timeAt(region.alongKm), region.familles, region.count)); details.append(summary);
+    const summary = create('summary'); summary.append(create('span', region.nom, 'tree-name'), meta(region.alongKm, region.familles, region.count)); details.append(summary);
     const body = create('div', undefined, 'tree-body');
     if (region.slug) { const p = create('p'), a = create('a', `Découvrir la région ${region.nom}`, 'tree-link') as HTMLAnchorElement; a.href = `/regions/${region.slug}/`; p.append(a); body.append(p); }
     const appList = create('ol', undefined, 'tree-list');
     for (const app of region.appellations) {
       const appLi = create('li'), appDetails = create('details', undefined, 'tree-app'); appDetails.dataset.appellation = app.slug;
-      const s = create('summary'); s.append(create('span', app.nom, 'tree-name'), meta(trip!.timeAt(app.alongKm), app.familles, app.count)); appDetails.append(s);
+      const s = create('summary'); s.append(create('span', app.nom, 'tree-name'), meta(app.alongKm, app.familles, app.count)); appDetails.append(s);
       const appBody = create('div', undefined, 'tree-body'), p = create('p'), a = create('a', `Classement complet ${app.nom}`, 'tree-link') as HTMLAnchorElement; a.href = `/appellations/${app.slug}/`; p.append(a); appBody.append(p);
       for (const colour of app.colours) {
         const head = create('h3', undefined, 'tree-colour'), sw = create('span', undefined, 'swatch'); sw.dataset.tone = colour.tone; sw.setAttribute('aria-hidden', 'true'); head.append(sw, `${app.nom} ${colour.couleur.toLowerCase()}`);
@@ -374,9 +397,9 @@ async function render() {
   if (maps && map) draw(regionsGeo.filter(f => regionEntries.has(f.properties.slug)), visibleAreas, tree);
   renderTree(tree);
   // Liste issue de Routes affichée : jamais à côté d'une carte non Google (conditions Google Maps Platform,
-  // 3.2.3(e) et 19.2). La carte statique Laureati est masquée, avec ou sans carte Google.
-  el('carte-statique').hidden = true;
+  // 3.2.3(e) et 19.2). La carte statique Laureati est masquée par layout(), avec ou sans carte Google.
   el('arbre-trajet').hidden = false;
+  layout();
 }
 
 /** Adresse de partage et sauvegarde de session, à jour du couloir. */
@@ -416,12 +439,12 @@ el('couloir').addEventListener('change', () => {
 async function showMap(mapsReady: Promise<any>): Promise<{ ok: boolean; message?: string }> {
   try {
     maps = await mapsReady;
-    el('carte-statique').hidden = true; el('carte-charger').hidden = true; el('carte-cadre').hidden = false; el('legende-carte').hidden = false;
+    mapState = 'shown'; layout();
     if (!map) { map = new maps.Map(el('carte-google'), { center: { lat: 46.6, lng: 2.5 }, zoom: 6, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false }); map.addListener('zoom_changed', () => applyBand()); }
     const bounds = new maps.LatLngBounds(); trip!.path.forEach(p => bounds.extend(p)); map.fitBounds(bounds);
     return { ok: true };
   } catch (error) {
-    el('carte-charger').hidden = false;
+    mapState = 'failed'; layout();
     return { ok: false, message: error instanceof MapQuotaError ? error.message : 'Carte Google indisponible. L’arbre ci-dessous reste utilisable.' };
   }
 }
@@ -433,7 +456,10 @@ async function display(query: TripQuery, route: SavedRoute, restored: boolean) {
   const path = decodePolyline(route.polyline), km = pathLengthKm(path);
   [data, regionsGeo] = await Promise.all([data ?? loadJson<RouteData>('/itineraire/donnees.json'), regionsGeo.length ? regionsGeo : loadJson<{ features: GeoFeature[] }>('/itineraire/geo/regions.json').then(c => c.features)]);
   if (!producersByUrl.size) for (const p of data.producers) producersByUrl.set(p.url, p);
-  trip = { query, route, path, samples: resample(path, 1), km: (route.distanceMeters ?? km * 1000) / 1000, seconds: parseFloat(route.staticDuration ?? '0') || 0, timeAt: timeline(route.steps, km) };
+  // Distance et durée totales de Routes ; positions le long du trajet depuis la polyligne seule.
+  trip = { query, route, path, samples: resample(path, 1), km: (route.distanceMeters ?? km * 1000) / 1000, seconds: parseFloat(route.staticDuration ?? '0') || 0 };
+  // Saisie remplacée par le résumé dès que le trajet s'affiche : aucun libellé Places à côté de la carte.
+  formOpen = false; for (const id of ['depart', 'arrivee']) resetSuggestions[id]?.(); layout();
   step('vignerons', 'done'); step('carte', 'doing'); status('Affichage de la carte…');
   const shown = await showMap(mapsReady);
   await render();
@@ -471,7 +497,7 @@ el('trajet').addEventListener('submit', async event => {
     current = 'trajet'; step('trajet', 'doing'); status('Calcul du trajet en cours…');
     const waypoint = (id: string, value: string) => chosen[id]?.label === value ? { placeId: chosen[id]!.placeId } : { address: value };
     loadMaps().catch(() => undefined);
-    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'routes.distanceMeters,routes.staticDuration,routes.polyline.encodedPolyline,routes.legs.steps.distanceMeters,routes.legs.steps.staticDuration' }, body: JSON.stringify({ origin: waypoint('depart', values[0]), destination: waypoint('arrivee', values[1]), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE', polylineQuality: 'HIGH_QUALITY', computeAlternativeRoutes: false, languageCode: 'fr', regionCode: 'fr', units: 'METRIC' }) });
+    const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': ROUTES_FIELD_MASK }, body: JSON.stringify({ origin: waypoint('depart', values[0]), destination: waypoint('arrivee', values[1]), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE', polylineQuality: 'HIGH_QUALITY', computeAlternativeRoutes: false, languageCode: 'fr', regionCode: 'fr', units: 'METRIC' }) });
     if (response.status === 400 || response.status === 404) throw new Error('Adresse introuvable. Précisez la commune ou choisissez une suggestion.');
     if (response.status === 403 || response.status === 429) throw new Error('Google refuse la demande pour le moment (quota ou autorisation). Réessayez plus tard.');
     if (!response.ok) throw new Error('Le calcul Google est indisponible. Réessayez plus tard.');
@@ -480,9 +506,11 @@ el('trajet').addEventListener('submit', async event => {
     step('trajet', 'done');
     const placeOf = (id: string, value: string) => chosen[id]?.label === value ? chosen[id]!.placeId : undefined;
     const query: TripQuery = { depart: values[0], arrivee: values[1], departId: placeOf('depart', values[0]), arriveeId: placeOf('arrivee', values[1]), couloir: width() };
-    const route: SavedRoute = { polyline: result.polyline.encodedPolyline, distanceMeters: result.distanceMeters, staticDuration: result.staticDuration, steps: (result.legs ?? []).flatMap((l: any) => l.steps ?? []).map((s: any) => ({ distanceMeters: s.distanceMeters ?? 0, staticDuration: s.staticDuration ?? '0s' })) };
+    const route: SavedRoute = { polyline: result.polyline.encodedPolyline, distanceMeters: result.distanceMeters, staticDuration: result.staticDuration };
     current = 'vignerons';
     await display(query, route, false);
+    // « Calculer » est masqué avec la saisie : le focus passe au résumé du trajet.
+    el('resume-titre').focus({ preventScroll: true });
     // Carte et état du calcul visibles ensemble après le résultat.
     if (!el('carte-cadre').hidden) el('carte-cadre').scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   } catch (error) {
@@ -497,9 +525,7 @@ el('trajet').addEventListener('submit', async event => {
 const shared = parseTripQuery(location.hash.slice(1));
 prefilled = shared;
 if (shared) {
-  el<HTMLInputElement>('depart').value = shared.depart; el<HTMLInputElement>('arrivee').value = shared.arrivee;
-  if (shared.departId) chosen.depart = { placeId: shared.departId, label: shared.depart };
-  if (shared.arriveeId) chosen.arrivee = { placeId: shared.arriveeId, label: shared.arrivee };
+  fillFields(shared);
   setWidth(shared.couloir);
   let saved; try { saved = readSavedTrip(sessionStorage.getItem(savedKey)); } catch { /* session indisponible */ }
   if (saved && consent && key && sameTrip(saved.trip, shared)) {
@@ -508,8 +534,21 @@ if (shared) {
     display(shared, saved.route, true).catch(() => { step('carte', 'error'); status('Restauration impossible. Cliquez sur « Calculer ».', true); }).finally(() => setBusy(false));
   } else status('Trajet prérempli depuis le lien. Cliquez sur « Calculer » pour l’afficher.');
 }
+layout();
+
+// « Modifier le trajet » : saisie rouverte, carte masquée. « Annuler » revient au trajet affiché, sans appel Google.
+el('modifier-trajet').addEventListener('click', () => {
+  if (busy || !trip) return;
+  closePanel(); if (el('carte-zone').classList.contains('is-plein')) fullscreen(false);
+  formOpen = true; layout(); el<HTMLInputElement>('depart').focus();
+});
+el('annuler-modification').addEventListener('click', () => {
+  if (busy || !trip) return;
+  fillFields(trip.query); formOpen = false; layout(); el('resume-titre').focus();
+});
 
 el('copier-lien').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(location.href); el('copier-etat').textContent = 'Lien copié.'; }
-  catch { el('copier-etat').textContent = `Lien du trajet : ${location.href}`; }
+  // Lien non affiché en clair : il porte les lieux saisis, à côté de la carte.
+  catch { el('copier-etat').textContent = 'Copie impossible. Copiez l’adresse de la page.'; }
 });

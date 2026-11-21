@@ -196,22 +196,15 @@ export function buildTree(data: RouteData, path: Point[], widthKm: number, entri
   return [...regions.values()].sort((a, b) => a.alongKm - b.alongKm || a.nom.localeCompare(b.nom, 'fr'));
 }
 
-/** Temps depuis le départ (secondes) au kilomètre `alongKm` du tracé, depuis les durées par étape de Routes. */
-export function timeline(steps: { distanceMeters?: number; staticDuration?: string }[], pathKm: number): (alongKm: number) => number {
-  const distance = [0], time = [0];
-  for (const step of steps) {
-    distance.push(distance[distance.length - 1] + (step.distanceMeters ?? 0));
-    time.push(time[time.length - 1] + (parseFloat(step.staticDuration ?? '0') || 0));
-  }
-  const total = distance[distance.length - 1];
-  return (alongKm: number) => {
-    if (!total || !pathKm) return 0;
-    const d = Math.max(0, Math.min(1, alongKm / pathKm)) * total;
-    let i = 1;
-    while (i < distance.length - 1 && distance[i] < d) i++;
-    const span = distance[i] - distance[i - 1];
-    return time[i - 1] + (span ? (d - distance[i - 1]) / span : 0) * (time[i] - time[i - 1]);
-  };
+/**
+ * Repère « À 120 km du départ » : kilomètre du tracé, calculé dans le navigateur depuis la polyligne seule.
+ * Conditions Google Maps Platform EEE (Routes) : ni description ni étapes du trajet avec une carte.
+ * Arrondi à 5 km, sans fausse précision.
+ */
+export function formatAlong(alongKm: number): string {
+  if (!Number.isFinite(alongKm)) return '';
+  const km = Math.round(Math.max(0, alongKm) / 5) * 5;
+  return km < 5 ? 'À moins de 5 km du départ' : `À ${km} km du départ`;
 }
 
 /** « 35 min », « 2 h 10 » : arrondi à 5 minutes, sans fausse précision. */
@@ -305,15 +298,22 @@ export function parseTripQuery(search: string): TripQuery | undefined {
 /** Même trajet (couloir exclu : il se recalcule localement). */
 export const sameTrip = (a: TripQuery, b: TripQuery) => a.depart === b.depart && a.arrivee === b.arrivee && (a.departId ?? '') === (b.departId ?? '') && (a.arriveeId ?? '') === (b.arriveeId ?? '');
 
-/** Résultat Routes conservé en session : restauration sans nouvel appel Google ni Turnstile. */
-export interface SavedRoute { polyline: string; distanceMeters?: number; staticDuration?: string; steps: { distanceMeters?: number; staticDuration?: string }[] }
+/**
+ * Champs demandés à Routes : distance et durée totales, polyligne. Jamais `routes.legs.steps` ni description
+ * (conditions Google Maps Platform EEE, Routes : pas d'étapes ni de description avec une carte).
+ */
+export const ROUTES_FIELD_MASK = 'routes.distanceMeters,routes.staticDuration,routes.polyline.encodedPolyline';
+
+/** Résultat Routes conservé en session : restauration sans nouvel appel Google ni Turnstile. Aucune étape. */
+export interface SavedRoute { polyline: string; distanceMeters?: number; staticDuration?: string }
 export interface SavedTrip { v: 1; trip: TripQuery; route: SavedRoute }
 export function readSavedTrip(raw: string | null): SavedTrip | undefined {
   try {
     const s = JSON.parse(raw ?? 'null');
-    if (s?.v !== 1 || typeof s.route?.polyline !== 'string' || !Array.isArray(s.route.steps)) return undefined;
+    if (s?.v !== 1 || typeof s.route?.polyline !== 'string') return undefined;
     const trip = parseTripQuery(tripQuery(s.trip));
-    return trip ? { v: 1, trip, route: { polyline: s.route.polyline, distanceMeters: Number(s.route.distanceMeters) || undefined, staticDuration: typeof s.route.staticDuration === 'string' ? s.route.staticDuration : undefined, steps: s.route.steps.slice(0, 5000).map((x: any) => ({ distanceMeters: Number(x?.distanceMeters) || 0, staticDuration: typeof x?.staticDuration === 'string' ? x.staticDuration : '0s' })) } } : undefined;
+    // Étapes d'une ancienne sauvegarde ignorées : seuls polyligne, distance et durée totales sont relus.
+    return trip ? { v: 1, trip, route: { polyline: s.route.polyline, distanceMeters: Number(s.route.distanceMeters) || undefined, staticDuration: typeof s.route.staticDuration === 'string' ? s.route.staticDuration : undefined } } : undefined;
   } catch { return undefined; }
 }
 
@@ -324,4 +324,19 @@ export function producerCard(producer: RouteProducer, data: RouteData): CardRow[
     const a = data.appellations[index];
     return a ? [{ slug: a.slug, appellation: a.nom, couleur, tone: wineTone(couleur), rang, total, score, medals }] : [];
   }).sort((a, b) => b.score - a.score || a.rang - b.rang || a.appellation.localeCompare(b.appellation, 'fr'));
+}
+
+/**
+ * Affichage de la page selon l'état, conditions Google Maps Platform EEE (« With any Map » : sur, à côté de ou
+ * visuellement associé à une carte quelconque, carte Google comprise).
+ * - Saisie : aucune carte dès que des suggestions Places sont possibles (focus avec accord) ou qu'un champ porte
+ *   un libellé Places (suggestion choisie, identifiant de lieu d'un lien partagé).
+ * - Trajet affiché : la saisie est remplacée par un résumé sans nom de lieu ; carte Google, ou liste seule.
+ * - La carte statique Laureati n'apparaît jamais avec un trajet (liste issue de Routes).
+ */
+export interface PageState { trip: boolean; formOpen: boolean; placesStarted: boolean; placesLabel: boolean; map: 'none' | 'shown' | 'failed' }
+export interface PageLayout { saisie: boolean; resume: boolean; statique: boolean; carte: boolean; charger: boolean }
+export function pageLayout(s: PageState): PageLayout {
+  const saisie = !s.trip || s.formOpen, resultat = s.trip && !s.formOpen;
+  return { saisie, resume: resultat, statique: !s.trip && !s.placesStarted && !s.placesLabel, carte: resultat && s.map === 'shown', charger: resultat && s.map === 'failed' };
 }
