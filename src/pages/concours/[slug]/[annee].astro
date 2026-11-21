@@ -1,0 +1,110 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Medal from '../../../components/Medal.astro';
+import Icon from '../../../components/Icon.astro';
+import { dataset, appellationsById, regionsById } from '../../../lib/data';
+import { baremes, competitionKey, competitionPath } from '../../../lib/concours';
+import { formatInt, sortMedals } from '../../../lib/ui';
+import type { Competition, Medal as MedalType, Producer } from '../../../lib/types';
+
+export function getStaticPaths() {
+  return dataset.competitions.flatMap(competition => competition.campagnes_absorbees.map(annee => ({
+    params: { slug: competitionKey(competition.id), annee: String(annee) },
+    props: { competition, annee },
+  })));
+}
+interface Props { competition: Competition; annee: number }
+const { competition, annee } = Astro.props;
+const path = `${competitionPath(competition)}${annee}/`;
+const scale = baremes(dataset).get(competition.id) ?? [];
+const points = (label: string) => scale.find(level => level.label === label)?.points ?? 0;
+
+const COLOR_ORDER = ['Rouge', 'Rosé', 'Clairet', 'Blanc', 'Effervescent blanc', 'Effervescent rosé',
+  'Gris', 'Jaune', 'Liquoreux', 'Moelleux', 'Demi-sec', 'Vin de paille', 'Cidre', 'Poiré', 'Pommeau'];
+const colorRank = (couleur: string) => {
+  const index = COLOR_ORDER.findIndex(value => value.toLowerCase() === couleur.toLowerCase());
+  return index === -1 ? COLOR_ORDER.length : index;
+};
+
+const groups = new Map<string, { appellationId: string; couleur: string; rows: Map<string, { producer: Producer; medals: MedalType[] }> }>();
+for (const producer of dataset.producers) {
+  for (const medal of producer.medailles) {
+    if (medal.concours_id !== competition.id || medal.annee !== annee) continue;
+    const key = `${medal.appellation_id}|${medal.couleur}`;
+    if (!groups.has(key)) groups.set(key, { appellationId: medal.appellation_id, couleur: medal.couleur, rows: new Map() });
+    const group = groups.get(key)!;
+    if (!group.rows.has(producer.id)) group.rows.set(producer.id, { producer, medals: [] });
+    group.rows.get(producer.id)!.medals.push(medal);
+  }
+}
+const list = [...groups.values()].map(group => {
+  const appellation = appellationsById.get(group.appellationId);
+  const ranking = appellation?.classements.find(item => item.couleur.toLowerCase() === group.couleur.toLowerCase());
+  return {
+    ...group,
+    appellation,
+    ancre: ranking?.ancre,
+    nom: appellation?.nom ?? group.rows.values().next().value!.medals[0]?.appellation_nom ?? 'Appellation hors classement',
+    rows: [...group.rows.values()].map(row => ({
+      ...row, best: Math.max(...row.medals.map(medal => points(medal.medaille))),
+      medals: sortMedals(row.medals),
+    })).sort((a, b) => b.best - a.best || a.producer.nom.localeCompare(b.producer.nom, 'fr')),
+  };
+}).sort((a, b) => {
+  if (a.appellation && !b.appellation) return -1;
+  if (!a.appellation && b.appellation) return 1;
+  return (a.appellation?.nom ?? a.nom).localeCompare(b.appellation?.nom ?? b.nom, 'fr')
+    || colorRank(a.couleur) - colorRank(b.couleur) || a.couleur.localeCompare(b.couleur, 'fr');
+});
+const medals = list.reduce((total, group) => total + group.rows.reduce((sum, row) => sum + row.medals.length, 0), 0);
+const producers = new Set(list.flatMap(group => group.rows.map(row => row.producer.id))).size;
+const title = `${competition.nom} ${annee}`;
+
+// Regroupement par région, replié par défaut sans JavaScript : la page reste légère
+// à l'affichage même pour un grand palmarès (CGA : plusieurs centaines de groupes).
+const HORS = 'Appellations hors classement';
+const byRegion = new Map<string, { nom: string; slug: string; groups: typeof list }>();
+for (const group of list) {
+  const region = group.appellation?.regions?.map(id => regionsById.get(id)).find(item => item !== undefined);
+  const key = region?.id ?? HORS;
+  if (!byRegion.has(key)) byRegion.set(key, { nom: region?.nom ?? HORS, slug: region?.slug ?? 'hors-classement', groups: [] });
+  byRegion.get(key)!.groups.push(group);
+}
+const regions = [...byRegion.values()].sort((a, b) =>
+  Number(a.nom === HORS) - Number(b.nom === HORS) || a.nom.localeCompare(b.nom, 'fr'));
+const medalCount = (group: (typeof list)[number]) => group.rows.reduce((sum, row) => sum + row.medals.length, 0);
+---
+<BaseLayout title={`${title} : vignerons médaillés par appellation`} description={`Palmarès ${annee} du ${competition.nom} pour les vignerons classés dans Laureati, par appellation et par couleur.`} breadcrumbs={[{ name: 'Concours', path: '/concours/' }, { name: competition.nom, path: competitionPath(competition) }, { name: String(annee), path }]}>
+  <div class="container"><header class="page-head">
+    <p class="eyebrow"><a href="/concours/">Concours</a> · <a href={competitionPath(competition)}>{competition.nom}</a></p>
+    <h1>{title}</h1>
+    <p class="lede">Les vignerons du corpus Laureati médaillés à la campagne {annee}, par appellation et par couleur.</p>
+    <dl class="stats stats--3">
+      <div><dt>vignerons</dt><dd>{formatInt(producers)}</dd></div>
+      <div><dt>médailles</dt><dd>{formatInt(medals)}</dd></div>
+      <div><dt>appellations × couleurs</dt><dd>{formatInt(list.length)}</dd></div>
+    </dl>
+    <p><a class="text-link" href={competition.url}>Palmarès officiel {competition.nom} {annee}<Icon name="external" /></a></p>
+  </header></div>
+
+  <div class="container">
+    <p class="palmares-warning" role="note">Seuls les vignerons classés dans le site figurent ici. Le palmarès complet est sur <a href={competition.url}>le site officiel du concours</a>.</p>
+
+    {list.length === 0 && <p class="note">Aucune médaille du corpus publié pour cette campagne.</p>}
+    {regions.length > 0 && <section class="section" aria-labelledby="par-region">
+      <h2 id="par-region">Médailles par région</h2>
+      <p class="note">Chaque titre d’appellation mène à son classement dans la couleur indiquée.</p>
+      {regions.map(region => <details class="disclosure palmares-region" open={regions.length === 1}>
+        <summary>{region.nom} <span class="disclosure__count">{region.groups.length} appellation{region.groups.length > 1 ? 's' : ''} × couleur · {formatInt(region.groups.reduce((sum, group) => sum + medalCount(group), 0))} médailles</span></summary>
+        <div class="disclosure__body">{region.groups.map((group, index) => <div class="palmares-group">
+          <h3>{group.appellation
+            ? <a href={`/appellations/${group.appellation.slug}/${group.ancre ? `#${group.ancre}` : ''}`}>{group.nom}</a>
+            : group.nom} <small>{group.couleur}{!group.ancre && group.appellation && ' · hors classement publié'}</small></h3>
+          <ul class="palmares-list">{group.rows.map(row => <li>
+            <p><a href={row.producer.url}>{row.producer.nom}</a>{row.medals.map(medal => <Medal label={medal.medaille} coin={false} />)}{row.medals.some(medal => medal.cuvee) && <span class="palmares-cuvee">{row.medals.filter(medal => medal.cuvee).map(medal => medal.cuvee).filter((value, index, all) => all.indexOf(value) === index).join(' · ')}</span>}</p>
+          </li>)}</ul>
+        </div>)}</div>
+      </details>)}
+    </section>}
+  </div>
+</BaseLayout>

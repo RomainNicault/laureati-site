@@ -1,0 +1,8 @@
+---
+import { wineTone } from '../lib/ui';
+interface Props { couleur: string; label?: boolean }
+const { couleur, label = false } = Astro.props;
+---
+{label
+  ? <span class="wine-color" data-tone={wineTone(couleur)}><span class="swatch" aria-hidden="true"></span>{couleur}</span>
+  : <span class="swatch" data-tone={wineTone(couleur)} aria-hidden="true"></span>}

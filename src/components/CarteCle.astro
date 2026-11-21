@@ -1,0 +1,6 @@
+---
+// Pastille de légende : couleur de la zone sur la carte voisine. Décorative, le nom porte le sens.
+interface Props { couleur?: string }
+const { couleur } = Astro.props;
+---
+{couleur && <span class="carte-cle" style={`--cle: ${couleur}`} aria-hidden="true"></span>}

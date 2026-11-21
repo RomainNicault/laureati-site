@@ -1,0 +1,8 @@
+---
+import { formatScore } from '../lib/site';
+interface Props { value: number; label?: string; size?: 'md' | 'lg' }
+const { value, label = 'points concours', size = 'md' } = Astro.props;
+---
+<div class:list={['score', { 'score--lg': size === 'lg' }]}>
+  <p class="score__line"><span class="score__value">{formatScore(value)}</span><span class="score__unit">{label}</span></p>
+</div>

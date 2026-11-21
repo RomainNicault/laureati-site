@@ -1,0 +1,198 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DataStamp from '../components/DataStamp.astro';
+import { dataset } from '../lib/data';
+import { francePath, project } from '../lib/carte-statique';
+import { COULOIR_DEFAUT } from '../lib/itineraire';
+const key=import.meta.env.PUBLIC_GOOGLE_MAPS_KEY ?? '';
+const turnstile=import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+const fields=[['depart','Départ','Ex. Paris'],['arrivee','Arrivée','Ex. Bordeaux']];
+const steps=[['robot','Anti-robot'],['trajet','Trajet'],['vignerons','Vignerons'],['carte','Carte']];
+---
+<BaseLayout title="Vignerons sur votre trajet" description="Un voyage prévu ? Trouvez le bon vigneron primé sur votre trajet en voiture : régions, appellations et vignerons dans l'ordre de la route." breadcrumbs={[{name:'Itinéraire',path:'/itineraire/'}]}>
+  <div id="itineraire" data-key={key} data-turnstile={turnstile}>
+    <header class="page-head"><span class="eyebrow">Itinéraire</span><h1>Un voyage prévu ? Trouvez le bon vigneron sur votre trajet.</h1><DataStamp /></header>
+    <form id="trajet" class="route-form" aria-labelledby="trajet-titre">
+      <h2 id="trajet-titre" class="sr-only">Votre trajet</h2>
+      <div class="route-fields">{fields.map(([id,label,placeholder])=><div class="route-field"><label for={id}>{label}</label><input id={id} name={id} placeholder={placeholder} autocomplete="off" required minlength="2" maxlength="200" aria-autocomplete="list" aria-controls={`${id}-suggestions`} aria-expanded="false" role="combobox"/><ul id={`${id}-suggestions`} class="route-suggestions" role="listbox" aria-label={`Suggestions : ${label}`} hidden></ul></div>)}</div>
+      <p id="google-attribution" class="note" hidden>Powered by Google</p>
+      <div class="route-go">
+        <button id="calculer" class="btn btn--primary route-submit" type="submit" aria-describedby="mention-google" aria-busy="false"><span class="route-submit__label">Calculer</span></button>
+        <p id="mention-google" class="note route-mention">Calculer envoie vos adresses et votre IP à Google, avec un contrôle anti-robot Cloudflare. <a href="/confidentialite/#itineraire">Confidentialité</a></p>
+      </div>
+      <p id="choix-google" class="note" hidden>Google activé sur cet appareil, sans cookie. <button id="oublier-google" class="btn btn--quiet" type="button">Oublier</button> · <a href="/confidentialite/#itineraire">Confidentialité</a></p>
+      <div id="turnstile"></div>
+      {!key && <p class="note">Le calcul est indisponible pour ce build. La carte et les listes restent accessibles.</p>}
+      <noscript><p>JavaScript est nécessaire pour calculer un itinéraire. Les régions et appellations restent accessibles plus bas.</p></noscript>
+    </form>
+    <div id="progression" class="route-progress" hidden>
+      <ol id="etapes" class="route-steps" aria-label="Progression du calcul">{steps.map(([id,label])=><li data-step={id} data-state="todo"><span class="step-dot" aria-hidden="true"></span><span class="step-name">{label}</span> <span class="step-state">à venir</span></li>)}</ol>
+    </div>
+    <p id="etat-trajet" class="route-status" role="status" aria-live="polite"></p>
+    <section id="carte-zone" class="route-maps" aria-labelledby="carte-titre">
+      <h2 id="carte-titre" class="sr-only">Carte</h2>
+      <figure id="carte-statique" class="route-static">
+        <svg viewBox="0 0 660 640" role="img" aria-labelledby="titre-carte description-carte"><title id="titre-carte">Vignerons recensés en France métropolitaine</title><desc id="description-carte">Chaque point représente un vigneron géolocalisé de notre export. Les régions sont accessibles en liste plus bas.</desc><path d={francePath} fill="var(--color-sunken)" stroke="var(--color-line-strong)" stroke-width="1" />{dataset.producers.filter(p=>Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)).map(p=>{const point=project(p.latitude!,p.longitude!);return <circle cx={point.lng} cy={point.lat} r="1.8" fill="var(--color-primary)" opacity="0.55"/>;})}</svg>
+        <figcaption class="note">Carte indicative, contour Natural Earth, domaine public. Points issus de notre export. Aucun service Google chargé.</figcaption>
+      </figure>
+      <p id="carte-charger" class="route-load" hidden><button id="charger-carte" class="btn" type="button">Charger la carte Google</button></p>
+      <div id="carte-cadre" class="route-stage" hidden>
+        <div id="carte-google" class="route-map" role="region" aria-label="Carte Google du trajet, des aires traversées et des vignerons" tabindex="-1"></div>
+        <button id="plein-ecran" class="btn route-fs" type="button" aria-pressed="false" aria-controls="carte-zone"><span class="label">Plein écran</span></button>
+        <aside id="panneau" class="route-panel" role="dialog" aria-modal="false" aria-labelledby="panneau-titre" hidden>
+          <button id="panneau-fermer" class="btn btn--quiet route-panel__close" type="button">Fermer<span class="sr-only"> la fiche</span></button>
+          <div id="panneau-contenu"></div>
+        </aside>
+      </div>
+      <div class="route-width">
+        <label for="couloir">Distance au trajet : <output id="distance-couloir" for="couloir">{COULOIR_DEFAUT} km</output></label>
+        <input id="couloir" name="couloir" type="range" min="5" max="30" step="5" value={COULOIR_DEFAUT} aria-valuetext={`${COULOIR_DEFAUT} kilomètres`} aria-describedby="couloir-aide"/>
+        <p id="couloir-aide" class="note">À vol d'oiseau, de 5 à 30 km. Modifiable après le calcul, sans nouvelle recherche Google.</p>
+      </div>
+      <div id="legende-carte" class="route-legend note" hidden>
+        <p id="densite-carte" aria-live="polite"></p>
+        <p><span class="key key--route" aria-hidden="true"></span>Trajet <span class="key key--region" aria-hidden="true"></span>Région <span class="key key--aire" aria-hidden="true"></span>Appellation <span class="key key--vigneron" aria-hidden="true"></span>Vigneron</p>
+        <p>Aires INAO par commune, contour indicatif sans portée juridique (INAO, Licence Ouverte 1.0 ; IGN et Insee, Licence Ouverte 2.0).</p>
+      </div>
+      <p class="note">10 recherches et 20 cartes Google au maximum par session. Voiture, sans trafic, sans étape intermédiaire.</p>
+    </section>
+    <section id="arbre-trajet" class="route-tree stack" hidden aria-labelledby="arbre-titre">
+      <h2 id="arbre-titre">Sur votre trajet</h2>
+      <p id="resume-trajet" class="lede"></p>
+      <p class="route-share"><button id="copier-lien" class="btn btn--quiet" type="button">Copier le lien du trajet</button> <span id="copier-etat" class="note" aria-live="polite"></span></p>
+      <p class="note">Régions dans l'ordre du trajet, puis leurs appellations, puis leurs vignerons triés par points concours.</p>
+      <div id="arbre"></div>
+    </section>
+    <section aria-labelledby="sans-google" class="route-directory-block"><h2 id="sans-google">Explorer sans Google Maps</h2><p>Les classements et les coordonnées restent accessibles sans calcul et sans JavaScript. Seuls les vignerons géolocalisés peuvent apparaître près d'un trajet.</p><div class="route-directory"><a class="btn" href="/#regions">Toutes les régions</a>{dataset.regions.map(r=><a class="btn" href={`/regions/${r.slug}/`}>{r.nom}</a>)}</div></section>
+  </div>
+</BaseLayout>
+<script>import '../scripts/itineraire';</script>
+<style>
+  [hidden] { display:none !important; }
+  .route-form { display:grid; gap:12px; padding:16px; border:1px solid var(--color-line-strong); border-radius:var(--radius-lg); background:var(--color-surface); margin-block:16px; }
+  .route-fields { display:grid; gap:12px; }
+  .route-field { position:relative; min-width:0; }
+  label { display:block; font-weight:600; margin-bottom:6px; }
+  input { width:100%; min-width:0; min-height:48px; padding:10px 12px; background:var(--color-surface); border:1.5px solid var(--color-line-strong); border-radius:var(--radius-md); color:var(--color-ink); font:inherit; }
+  input[type=range] { padding-inline:0; accent-color:var(--color-primary); }
+  .route-form .note { margin:0; }
+  .route-go { display:grid; gap:4px; }
+  .route-submit { min-width:12rem; gap:10px; }
+  .route-submit[aria-busy=true] { cursor:progress; opacity:1; background:var(--color-primary-hover); }
+  .route-submit[aria-busy=true]::before { content:''; width:16px; height:16px; border-radius:50%; border:2px solid currentColor; border-right-color:transparent; animation:route-spin .8s linear infinite; }
+  @keyframes route-spin { to { transform:rotate(1turn); } }
+  .route-mention { font-size:var(--text-sm); }
+  .route-mention a { display:inline-flex; align-items:center; min-height:44px; }
+  #choix-google .btn { min-height:44px; margin-left:4px; }
+  #choix-google a { display:inline-flex; align-items:center; min-height:44px; }
+  .route-progress { margin-block:8px 0; }
+  .route-steps { list-style:none; display:flex; flex-wrap:wrap; gap:8px 20px; padding:0; margin:0; font-size:var(--text-sm); }
+  .route-steps li { display:flex; align-items:center; gap:6px; margin:0; color:var(--color-muted); }
+  .route-steps .step-name { font-weight:600; }
+  .step-dot { width:12px; height:12px; border-radius:50%; border:2px solid var(--color-line-strong); background:var(--color-surface); flex-shrink:0; }
+  .route-steps li[data-state=doing] { color:var(--color-ink); }
+  .route-steps li[data-state=doing] .step-dot { border-color:var(--color-primary); border-right-color:transparent; animation:route-spin .8s linear infinite; }
+  .route-steps li[data-state=done], .route-steps li[data-state=skip] { color:var(--color-ink-soft); }
+  .route-steps li[data-state=done] .step-dot, .route-steps li[data-state=skip] .step-dot { border-color:var(--color-primary); background:var(--color-primary); }
+  .route-steps li[data-state=error] { color:var(--color-primary); }
+  .route-steps li[data-state=error] .step-dot { border-color:var(--color-primary); background:var(--color-wine-100); }
+  .route-status { margin-block:8px; font-weight:600; min-height:1.5em; }
+  .route-status.is-error { color:var(--color-primary); }
+  .route-static { margin:16px 0; padding:16px; border:1px solid var(--color-line); border-radius:var(--radius-lg); background:var(--color-surface); }
+  .route-static svg { width:100%; max-height:420px; display:block; }
+  .route-stage { position:relative; margin-block:16px 8px; }
+  .route-map { height:clamp(360px,70vh,640px); max-width:100%; border-radius:var(--radius-lg); }
+  .route-fs { position:absolute; top:10px; left:10px; z-index:2; min-height:44px; background:var(--color-surface); box-shadow:var(--shadow-card); }
+  .route-panel { position:absolute; z-index:3; left:0; right:0; bottom:0; max-height:75%; overflow:auto; overscroll-behavior:contain; padding:16px; background:var(--color-surface); border:1px solid var(--color-line); border-radius:var(--radius-lg) var(--radius-lg) 0 0; box-shadow:var(--shadow-pop); }
+  .route-panel__close { float:right; min-height:44px; margin:0 0 8px 8px; }
+  .route-panel :global(.route-panel__title) { font:700 var(--text-lg)/1.2 var(--font-display); margin:0 0 4px; }
+  .route-panel :global(.route-panel__title:focus) { outline:none; }
+  .route-panel :global(.route-panel__place) { clear:both; margin:0 0 12px; color:var(--color-muted); font-size:var(--text-sm); }
+  .route-panel :global(.route-panel__sub) { font-size:var(--text-sm); font-weight:600; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--color-primary); margin:16px 0 4px; clear:both; }
+  .route-panel :global(.route-panel__list) { list-style:none; padding:0; margin:0; }
+  .route-panel :global(.route-panel__list > li) { padding:8px 0; border-top:1px solid var(--color-line); margin:0; }
+  .route-panel :global(.route-panel__app) { display:flex; align-items:center; gap:8px; margin:0; }
+  .route-panel :global(.route-panel__app a) { display:inline-flex; align-items:center; min-height:44px; font-weight:600; }
+  .route-panel :global(.route-panel__rank) { display:flex; justify-content:space-between; gap:12px; margin:0 0 4px; font-size:var(--text-sm); }
+  .route-panel :global(.route-panel__rank strong) { font-variant-numeric:tabular-nums; }
+  .route-panel :global(.route-panel__full) { margin-top:12px; width:100%; }
+  .route-panel :global(.c-actions) { position:relative; display:flex; flex-wrap:wrap; gap:8px; }
+  .route-panel :global(.c-actions .btn) { min-height:44px; }
+  .route-maps :global(.route-map-label) { text-shadow:0 0 3px #FFFDF8, 0 0 3px #FFFDF8, 0 0 2px #FFFDF8; pointer-events:none; }
+  .route-maps :global(.route-bubble) { font:400 var(--text-sm)/1.4 var(--font-text); color:var(--color-ink); max-width:16rem; }
+  .route-maps :global(.route-bubble p) { margin:0 0 4px; }
+  .route-maps :global(.route-bubble__title) { font:700 var(--text-md)/1.25 var(--font-text) !important; }
+  .route-maps :global(.route-bubble__actions) { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:8px !important; }
+  .route-maps :global(.route-bubble__actions .btn) { min-height:44px; font-size:var(--text-sm); }
+  .route-maps :global(.route-bubble__actions a) { display:inline-flex; align-items:center; min-height:44px; font-weight:600; }
+  .route-load { margin:0 0 16px; }
+  .route-load .btn { min-height:44px; }
+  .route-width { padding-block:8px; }
+  .route-width .note { margin:4px 0 0; font-size:var(--text-sm); }
+  .route-legend p { margin-block:4px; }
+  .key { display:inline-block; width:14px; height:14px; margin:0 6px 0 12px; vertical-align:-2px; border-radius:3px; }
+  .key:first-child { margin-left:0; }
+  .key--route { height:4px; vertical-align:3px; background:var(--color-wine-950); }
+  .key--region { background:rgba(70,54,59,.15); border:2px solid var(--color-ink); }
+  .key--aire { background:rgba(123,24,48,.35); border:1px solid var(--tone-rouge); }
+  .key--vigneron { border-radius:50%; background:var(--color-primary); border:2px solid var(--color-surface); box-shadow:0 0 0 1px var(--color-primary); }
+  /* Plein écran : la zone carte occupe la fenêtre, le réglage du couloir reste sous la carte. */
+  .route-maps.is-plein { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; margin:0; padding:0; background:var(--color-paper); }
+  .route-maps.is-plein > :not(.route-stage):not(.route-width):not(.route-legend) { display:none !important; }
+  .route-maps.is-plein .route-legend { margin:0; padding:4px 16px; background:var(--color-surface); }
+  .route-maps.is-plein .route-legend > :not(#densite-carte) { display:none; }
+  .route-legend .is-error { color:var(--color-primary); font-weight:600; }
+  .route-maps.is-plein .route-stage { flex:1; min-height:0; margin:0; }
+  .route-maps.is-plein .route-map { height:100%; border-radius:0; }
+  .route-maps.is-plein .route-width { padding:8px 16px; background:var(--color-surface); border-top:1px solid var(--color-line); }
+  .route-maps.is-plein .route-width .note { display:none; }
+  :global(html.route-plein), :global(html.route-plein body) { overflow:hidden; }
+  .route-share { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0; }
+  .route-share .btn { min-height:44px; }
+  .route-suggestions { margin:4px 0 0; padding:0; list-style:none; border:1px solid var(--color-line-strong); border-radius:var(--radius-md); }
+  .route-suggestions :global(button) { display:block; width:100%; min-height:48px; text-align:left; border:0; background:var(--color-surface); color:var(--color-ink); padding:12px; font:inherit; cursor:pointer; }
+  .route-suggestions :global(button:hover),.route-suggestions :global(button:focus) { background:var(--color-sunken); }
+  .route-directory { display:flex; flex-wrap:wrap; gap:12px; }
+  .route-directory-block { margin-block:40px 24px; }
+  #arbre :global(details) { border-top:1px solid var(--color-line); }
+  #arbre :global(summary) { display:grid; gap:2px; min-height:44px; padding:12px 8px 12px 32px; cursor:pointer; position:relative; list-style:none; }
+  #arbre :global(summary::-webkit-details-marker) { display:none; }
+  #arbre :global(summary::before) { content:''; position:absolute; left:10px; top:20px; width:8px; height:8px; border-right:2px solid var(--color-primary); border-bottom:2px solid var(--color-primary); transform:rotate(-45deg); transition:transform var(--duration) var(--ease); }
+  #arbre :global(details[open] > summary::before) { transform:rotate(45deg); }
+  #arbre :global(summary:hover) { background:var(--color-wine-50); }
+  #arbre :global(.tree-name) { font:700 var(--text-lg)/1.25 var(--font-display); color:var(--color-ink); }
+  #arbre :global(.tree-app .tree-name) { font:600 var(--text-md)/1.3 var(--font-text); }
+  #arbre :global(.tree-meta) { display:flex; flex-wrap:wrap; gap:0 12px; font-size:var(--text-sm); color:var(--color-muted); }
+  #arbre :global(.tree-meta > span) { white-space:nowrap; }
+  #arbre :global(.tree-region > .tree-body > ol > li) { border-left:3px solid var(--color-wine-100); padding-left:8px; margin-bottom:4px; }
+  #arbre :global(.tree-meta .swatch) { margin-right:2px; }
+  #arbre :global(.tree-body) { padding:0 0 12px 16px; }
+  #arbre :global(.tree-body > p) { margin-block:4px 8px; }
+  #arbre :global(.tree-body a.tree-link) { display:inline-flex; align-items:center; min-height:44px; }
+  #arbre :global(ol.tree-list) { list-style:none; padding:0; margin:0; }
+  #arbre :global(.tree-colour) { display:flex; align-items:center; gap:6px; margin:12px 0 4px; font-size:var(--text-sm); font-weight:600; letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--color-ink-soft); }
+  #arbre :global(.c-list) { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  #arbre :global(.c-row) { display:grid; grid-template-columns:2.25rem minmax(0,1fr) auto; grid-template-areas:'rank id score' 'rank medals medals' 'actions actions actions'; gap:4px 8px; padding:10px 12px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:var(--color-surface); }
+  #arbre :global(.c-rank) { grid-area:rank; font:700 1.5rem/1 var(--font-display); color:var(--color-primary); padding-top:10px; }
+  #arbre :global(.c-rank sup) { font-size:.55em; }
+  #arbre :global(.c-id) { grid-area:id; min-width:0; }
+  #arbre :global(.c-name) { display:flex; align-items:center; min-height:44px; font-weight:600; color:var(--color-ink); text-decoration:none; }
+  #arbre :global(.c-name:hover) { color:var(--color-primary); text-decoration:underline; }
+  #arbre :global(.c-place) { display:block; font-size:var(--text-sm); color:var(--color-muted); }
+  #arbre :global(.c-score) { grid-area:score; text-align:right; padding-top:8px; }
+  #arbre :global(.c-score strong) { display:block; font:600 22px/1.2 var(--font-text); font-variant-numeric:tabular-nums; }
+  #arbre :global(.c-score span) { font-size:var(--text-xs); color:var(--color-muted); }
+  #arbre :global(.c-row .tally) { grid-area:medals; }
+  #arbre :global(.c-actions) { grid-area:actions; position:relative; display:flex; flex-wrap:wrap; gap:8px; }
+  #arbre :global(.c-actions .btn) { min-height:44px; font-size:var(--text-sm); }
+  #arbre :global(.c-actions .route__menu) { right:auto; }
+  @media(min-width:768px) {
+    .route-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .route-go { grid-template-columns:auto minmax(0,1fr); align-items:center; column-gap:16px; }
+    .route-panel { left:auto; top:12px; right:12px; bottom:12px; width:min(380px,45%); max-height:none; border-radius:var(--radius-lg); }
+    #arbre :global(.c-row) { grid-template-columns:2.5rem minmax(0,1fr) auto auto; grid-template-areas:'rank id medals score' 'rank actions actions actions'; align-items:center; }
+    #arbre :global(.c-row .tally) { justify-content:flex-end; }
+  }
+  @media(max-width:400px) { .route-submit { width:100%; } #arbre :global(.tree-body) { padding-left:4px; } }
+  @media(prefers-reduced-motion:reduce) { .route-submit[aria-busy=true]::before, .route-steps li[data-state=doing] .step-dot { animation:none; } }
+</style>

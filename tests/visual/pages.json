@@ -1,0 +1,17 @@
+[
+  { "id": "itineraire", "path": "/itineraire/", "lighthouse": true },
+  { "id": "accueil", "path": "/", "lighthouse": true },
+  { "id": "appellation", "path": "/appellations/chateauneuf-du-pape/", "lighthouse": true },
+  { "id": "appellation-texte", "path": "/appellations/morgon/", "lighthouse": true },
+  { "id": "vigneron", "path": "/vignerons/e2070a398e-domaine-de-saint-siffrein/", "lighthouse": true },
+  { "id": "region", "path": "/regions/rhone/", "lighthouse": true },
+  { "id": "region-loire", "path": "/regions/loire/" },
+  { "id": "appellation-fleurie", "path": "/appellations/fleurie/" },
+  { "id": "recherche", "path": "/recherche/" },
+  { "id": "styleguide", "path": "/styleguide/" },
+  { "id": "concours", "path": "/concours/" },
+  { "id": "concours-cga", "path": "/concours/cga/" },
+  { "id": "palmares-orange-2026", "path": "/concours/orange/2026/" },
+  { "id": "palmares-cga-2026", "path": "/concours/cga/2026/", "lighthouse": true },
+  { "id": "methodologie", "path": "/methodologie/" }
+]

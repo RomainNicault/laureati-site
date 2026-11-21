@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "laureati-site",
+  "compatibility_date": "2026-10-01",
+  "previews": {},
+  "main": "src/worker.ts",
+  "triggers": { "crons": ["17 3 * * *"] },
+  "observability": { "enabled": true },
+  "d1_databases": [{ "binding": "DB", "database_name": "laureati-corrections", "database_id": "81fd671c-a23f-477f-bdd5-475f4f7a063a", "migrations_dir": "migrations" }],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  }
+}

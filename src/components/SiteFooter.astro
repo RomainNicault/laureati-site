@@ -1,0 +1,27 @@
+---
+import { dataset } from '../lib/data';
+import { formatDate, formatInt } from '../lib/ui';
+const { meta } = dataset;
+---
+<footer class="footer on-dark">
+  <div class="container footer__inner">
+    <div class="footer__brand">
+      <img src="/brand/sceau-192.webp" width="64" height="64" alt="" loading="lazy" />
+      <p><strong>Laureati</strong>Les vignerons primés en concours, classés par appellation et par couleur.</p>
+    </div>
+    <nav aria-label="Pied de page">
+      <ul class="footer__links">
+        <li><a href="/concours/">Concours</a></li>
+        <li><a href="/recherche/">Rechercher</a></li>
+        <li><a href="/itineraire/">Sur ma route</a></li>
+        <li><a href="/methodologie/">Méthode de classement</a></li>
+        <li><a href="/mentions-legales/">Mentions légales</a></li>
+        <li><a href="/confidentialite/">Confidentialité</a></li>
+      </ul>
+    </nav>
+    <div class="footer__meta">
+      <p>Export du <time datetime={meta.exporte_le}>{formatDate(meta.exporte_le)}</time> · {formatInt(meta.comptes.vignerons)} vignerons · {formatInt(meta.comptes.appellations)} appellations · {formatInt(meta.comptes.concours)} concours.</p>
+      <p class="footer__law">L’abus d’alcool est dangereux pour la santé. À consommer avec modération.</p>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,10 @@
+---
+// Barre d'actions collante, en bas d'écran sur mobile, fiche vigneron seulement.
+import Actions from './Actions.astro';
+import type { Producer } from '../lib/types';
+interface Props { producer: Producer }
+const { producer } = Astro.props;
+---
+{(producer.telephone || producer.site || producer.latitude !== undefined) && <nav class="action-bar on-dark" aria-label="Actions rapides" data-pagefind-ignore>
+  <Actions producer={producer} variant="bar" />
+</nav>}

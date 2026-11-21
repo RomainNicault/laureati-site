@@ -1,0 +1,5 @@
+---
+import { dataset } from '../lib/data';
+import { formatDate } from '../lib/ui';
+---
+<p class="data-stamp"><span class="data-stamp__date">Mis à jour le <time datetime={dataset.meta.exporte_le}>{formatDate(dataset.meta.exporte_le)}</time></span><a href="/methodologie/">Méthode et sources</a></p>

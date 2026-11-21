@@ -1,0 +1,100 @@
+name: Contrôle visuel
+
+# Build et tests sur chaque pull request vers main. Captures, Lighthouse et
+# portes visuelles seulement si la PR touche l'affichage (décision du 18/11) :
+# une PR limitée au Worker, aux migrations D1, à la configuration ou à la
+# documentation les saute. Ne touche ni au Worker, ni à wrangler.jsonc, ni à data/.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: controle-visuel-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  controle-visuel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      # Hors affichage : Worker, migrations D1, wrangler, docs, tests du Worker et de D1.
+      - name: Détecter une PR d'affichage
+        id: portee
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE:-}" ]; then echo "visuel=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          changes=$(git diff --name-only "$BASE"...HEAD)
+          echo "$changes"
+          hors='^(src/worker\.ts|wrangler\.jsonc|README\.md|DESIGN\.md|tests/(worker|purge|turnstile)\.test\.mjs|tests/d1\.mjs)$|^(migrations|docs)/'
+          if [ -n "$changes" ] && ! printf '%s\n' "$changes" | grep -Eqv "$hors"; then
+            echo "visuel=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "visuel=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Installer Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      # Textes éditoriaux de test : au moins une page avec texte passe par les portes.
+      # Données privées (dépôt laureati-data) récupérées par le build : secret absent
+      # sur une PR de fork, le build s'arrête.
+      - name: Construire le site
+        run: npm run build
+        env:
+          LAUREATI_DATA_DEPLOY_KEY: ${{ secrets.LAUREATI_DATA_DEPLOY_KEY }}
+          LAUREATI_TEXTES_ROOT: tests/fixtures/textes
+
+      - name: Installer Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests du site
+        run: npm test
+
+      - name: Non-régression des portes
+        run: node --test tests/visual/*.test.mjs
+
+      - name: Captures et portes visuelles
+        id: capture
+        if: steps.portee.outputs.visuel == 'true'
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          python3 -m http.server 4329 --bind 127.0.0.1 --directory dist &
+          SRV=$!
+          trap 'kill $SRV 2>/dev/null || true' EXIT
+          for _ in $(seq 1 40); do
+            curl -sf -o /dev/null http://127.0.0.1:4329/ && break
+            sleep 0.5
+          done
+          node tests/visual/capture.mjs http://127.0.0.1:4329 tests/visual/out --lighthouse
+
+      - name: Publier les captures
+        if: always() && steps.portee.outputs.visuel == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: controle-visuel
+          path: tests/visual/out
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Vérifier les portes
+        if: always() && steps.portee.outputs.visuel == 'true'
+        run: node tests/visual/gate.mjs tests/visual/out/gates.json

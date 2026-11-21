@@ -1,0 +1,25 @@
+---
+// « Pourquoi ce classement ? » : bloc repliable unique sous les listes.
+// Calcul, égalités, fraîcheur, corpus non exhaustif et lien vers la méthode.
+import Icon from './Icon.astro';
+import { dataset } from '../lib/data';
+import { formatDate } from '../lib/ui';
+interface Props { competitionIds?: string[]; tie?: boolean }
+const { competitionIds, tie = false } = Astro.props;
+const competitions = dataset.competitions.filter(c => !competitionIds || competitionIds.includes(c.id));
+const latest = Math.max(0, ...competitions.map(c => c.derniere_campagne ?? 0));
+---
+<details class="why" id="pourquoi" data-pagefind-ignore>
+  <summary><span>Pourquoi ce classement ?</span><Icon name="chevron" /></summary>
+  <div class="why__body">
+    <dl>
+      <div><dt>Calcul</dt><dd>Points de concours, pas une note sur 20. Pour chaque concours et chaque campagne, seule la meilleure médaille du vigneron dans l’appellation et la couleur compte. Les trois dernières campagnes pèsent 1, 2/3 puis 1/3.</dd></div>
+      <div><dt>Égalités</dt><dd>{tie ? 'Des scores affichés sont égaux : le rang suit le score exact, puis le nom.' : 'À score égal, le rang suit le score exact, puis le nom. Aucun rang ex æquo.'}</dd></div>
+      <div><dt>Fraîcheur</dt><dd>Dernière campagne prise en compte : {latest > 0 ? latest : 'aucune'}, sur {competitions.length} concours. Données mises à jour le <time datetime={dataset.meta.exporte_le}>{formatDate(dataset.meta.exporte_le)}</time>.
+        <ul class="why__concours">{competitions.map(c => <li><a href={c.url}>{c.nom}<Icon name="external" /></a><span>Dernière campagne : {c.derniere_campagne ?? 'aucune'}</span></li>)}</ul>
+      </dd></div>
+      <div><dt>Corpus</dt><dd>Seuls les vignerons médaillés dans les concours suivis sont recensés. L’absence d’un vigneron ne dit rien de ses vins.</dd></div>
+    </dl>
+    <p><a class="text-link" href="/methodologie/">Calcul du score et méthode<Icon name="arrow" /></a></p>
+  </div>
+</details>

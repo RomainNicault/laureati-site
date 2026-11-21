@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import SectionHead from '../../components/SectionHead.astro';
+import { textes as lireTextes } from '../../lib/textes-store';
+import { dataset } from '../../lib/data';
+import { campaignPath, competitionKey, competitionPath } from '../../lib/concours';
+import { formatInt } from '../../lib/ui';
+
+const textes = await lireTextes('textes-concours');
+const competitions = [...dataset.competitions].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+const count = (id: string) => dataset.producers.reduce((total, producer) =>
+  total + producer.medailles.filter(medal => medal.concours_id === id).length, 0);
+---
+<BaseLayout title="Les concours de vins suivis" description="Présentation des concours de vins dont Laureati suit les palmarès, avec leur barème, leurs campagnes et leurs palmarès annuels." breadcrumbs={[{ name: 'Concours', path: '/concours/' }]}>
+  <header class="page-head">
+    <p class="eyebrow">Concours</p>
+    <h1>Les concours suivis</h1>
+    <p class="lede">{dataset.competitions.length} concours de vins français, chacun sur ses trois dernières campagnes. Chaque page mène au palmarès officiel et aux palmarès annuels du corpus publié.</p>
+    <p class="note">Les médailles sont celles des vignerons classés dans Laureati, pas le palmarès complet.</p>
+  </header>
+
+  <section class="section" aria-labelledby="liste">
+    <SectionHead eyebrow="Palmarès" title="Tous les concours" id="liste" />
+    <ul class="concours-grid">{competitions.map(competition => <li>
+      <article class="concours-card">
+        <h2><a href={competitionPath(competition)}>{competition.nom}</a></h2>
+        <p class="concours-card__meta">Poids {competition.poids} · {competition.campagnes_absorbees.length} campagnes absorbées · dernière : {competition.derniere_campagne ?? 'aucune'}</p>
+        <p class="note">{formatInt(count(competition.id))} médailles du corpus publié{textes.some(texte => texte.data.slug === competitionKey(competition.id)) ? ' · texte éditorial' : ''}.</p>
+        {competition.campagnes_absorbees[0] !== undefined && <p class="concours-card__links"><a class="text-link" href={campaignPath(competition, Math.max(...competition.campagnes_absorbees))}>Palmarès annuels<Icon name="arrow" /></a></p>}
+      </article>
+    </li>)}</ul>
+  </section>
+</BaseLayout>

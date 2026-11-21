@@ -1,0 +1,44 @@
+---
+import Icon from './Icon.astro';
+import { TURNSTILE_SITE_KEY } from '../lib/site';
+interface Props { page: string; producerId?: string }
+const { page, producerId = '' } = Astro.props;
+const sitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || TURNSTILE_SITE_KEY;
+---
+<details id="correction" class="correction" data-pagefind-ignore>
+  <summary><span><span class="correction__q">Une information inexacte ?</span><span class="correction__cta">Suggérer une correction</span></span><Icon name="chevron" /></summary>
+  <form method="post" action="/api/correction" accept-charset="UTF-8">
+    <input type="hidden" name="page" value={page} />
+    <input type="hidden" name="producer_id" value={producerId} />
+    <div hidden aria-hidden="true"><label>Ne pas remplir<input name="site_web_2" tabindex="-1" autocomplete="off" /></label></div>
+    <div class="field">
+      <label class="field__label" for="correction-champ">Champ à corriger</label>
+      <select class="select" id="correction-champ" name="champ" required>
+        <option value="">Choisir un champ</option>
+        <option value="adresse">Adresse</option><option value="telephone">Téléphone</option>
+        <option value="site">Site web</option><option value="nom">Nom</option>
+        <option value="medaille">Médaille</option><option value="autre">Autre</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field__label" for="correction-valeur">Valeur proposée</label>
+      <textarea class="textarea" id="correction-valeur" name="valeur_proposee" maxlength="500" rows="3" required aria-describedby="correction-valeur-aide"></textarea>
+      <p class="field__hint" id="correction-valeur-aide">500 caractères maximum.</p>
+    </div>
+    <div class="field">
+      <label class="field__label" for="correction-commentaire">Commentaire</label>
+      <textarea class="textarea" id="correction-commentaire" name="commentaire" maxlength="2000" rows="4" aria-describedby="correction-commentaire-aide"></textarea>
+      <p class="field__hint" id="correction-commentaire-aide">Facultatif, 2 000 caractères maximum.</p>
+    </div>
+    <div class="field">
+      <label class="field__label" for="correction-contact">Contact (facultatif, seulement pour vous répondre)</label>
+      <input class="input" id="correction-contact" name="contact" maxlength="200" autocomplete="email" />
+    </div>
+    <div class="correction__turnstile" data-turnstile-sitekey={sitekey}></div>
+    <p class="field__hint">Ce formulaire est protégé par Cloudflare Turnstile. <a href="/confidentialite/#turnstile">Données transmises</a>.</p>
+    <p class="field__hint" data-turnstile-status role="status" aria-live="polite"></p>
+    <p class="note">Ces informations servent à vérifier et corriger cette page. Conservation : 12 mois. Le contact est facultatif. <a href="/confidentialite/">Politique de confidentialité</a>.</p>
+    <button class="btn btn--primary" type="submit">Envoyer la correction</button>
+  </form>
+</details>
+<script>import '../scripts/correction';</script>

@@ -1,0 +1,106 @@
+/* Jetons du système « Palmarès ». Source de vérité : DESIGN.md (frontmatter). */
+:root {
+  /* Marque : bordeaux */
+  --color-wine-950: #26060F;
+  --color-wine-900: #3B0A18;
+  --color-primary: #5B1428;
+  --color-primary-hover: #741C35;
+  --color-wine-300: #C98C9A;
+  --color-wine-100: #F3E3E4;
+  --color-wine-50: #FAF1EF;
+  --color-on-primary: #F8ECD4;
+  --color-on-primary-muted: #E3C9B8;
+
+  /* Papier et encre */
+  --color-paper: #F7F2E9;
+  --color-surface: #FFFDF8;
+  --color-sunken: #EFE7DA;
+  --color-ink: #21141A;
+  --color-ink-soft: #46363B;
+  --color-muted: #5A4A42;
+  --color-line: #E5D9CC;
+  --color-line-strong: #C9B59C;
+  --color-gilt: #A7833A;
+  --color-focus: #5B1428;
+  --color-focus-on-dark: #F8ECD4;
+
+  /* Médailles (pièces, jamais pour du texte) */
+  --medal-grand-or: #C8961C;
+  --medal-grand-or-edge: #5B1428;
+  --medal-or: #C9A227;
+  --medal-or-edge: #9C7414;
+  --medal-argent: #A7A9AC;
+  --medal-argent-edge: #7D838A;
+  --medal-bronze: #B0703C;
+  --medal-bronze-edge: #85491F;
+  --medal-autre: #D9CFC2;
+  --medal-autre-edge: #8F8172;
+
+  /* Teintes de vin (pastilles de couleur) */
+  --tone-rouge: #7B1830;
+  --tone-rose: #E7A09D;
+  --tone-blanc: #E9D592;
+  --tone-bulles: #EEE2AE;
+  --tone-bulles-rose: #F0BAB3;
+  --tone-clairet: #C04557;
+  --tone-liquoreux: #D59722;
+  --tone-moelleux: #E3B95E;
+  --tone-jaune: #D6A019;
+  --tone-gris: #DCC6BD;
+  --tone-pommeau: #A4561F;
+  --tone-cidre: #DDB54A;
+
+  /* Typographie */
+  --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --font-text: 'Work Sans', 'Helvetica Neue', Arial, sans-serif;
+  --text-xs: 0.875rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --title-sm: 1.375rem;
+  --title-md: clamp(1.625rem, 1.3rem + 1.4vw, 2.125rem);
+  --title-lg: clamp(2rem, 1.4rem + 3vw, 3.5rem);
+  --title-xl: clamp(2rem, 1.25rem + 4vw, 4rem);
+  --numeral-rank: 1.75rem;
+  --leading-tight: 1.05;
+  --leading-snug: 1.3;
+  --leading-body: 1.55;
+  --tracking-caps: 0.08em;
+  --tracking-brand: 0.22em;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Espacements (base 4 px) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --container: 1160px;
+  --measure: 40rem;
+
+  /* Formes */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --border: 1px;
+
+  /* Profondeur */
+  --shadow-card: 0 1px 0 rgba(59, 10, 24, 0.06), 0 10px 24px -18px rgba(59, 10, 24, 0.45);
+  --shadow-pop: 0 18px 40px -12px rgba(38, 6, 15, 0.45);
+  --shadow-bar: 0 -10px 30px -12px rgba(38, 6, 15, 0.5);
+
+  /* Interaction */
+  --tap-min: 44px;
+  --tap-comfort: 48px;
+  --bar-height: 64px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration: 160ms;
+}

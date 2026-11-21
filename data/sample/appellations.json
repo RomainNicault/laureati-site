@@ -1,0 +1,59 @@
+[
+  {
+    "id": "appellation:fictive",
+    "nom": "Appellation Exemple",
+    "slug": "appellation-exemple",
+    "regions": [
+      "region:fictive"
+    ],
+    "couleurs": [
+      "Rouge",
+      "Blanc"
+    ],
+    "couleurs_documentees": [
+      "rouge",
+      "blanc"
+    ],
+    "classements": [
+      {
+        "couleur": "Rouge",
+        "ancre": "rouge",
+        "total_vignerons_medailles": 8,
+        "vignerons": [
+          {
+            "producer_id": "producer:1111111111111111111111111111111111111111111111111111111111111111",
+            "rang": 1,
+            "score": 3.6666666666666665
+          },
+          {
+            "producer_id": "producer:2222222222222222222222222222222222222222222222222222222222222222",
+            "rang": 2,
+            "score": 3.3333333333333335
+          },
+          {
+            "producer_id": "producer:3333333333333333333333333333333333333333333333333333333333333333",
+            "rang": 3,
+            "score": 3.0
+          }
+        ]
+      },
+      {
+        "couleur": "Blanc",
+        "ancre": "blanc",
+        "total_vignerons_medailles": 8,
+        "vignerons": [
+          {
+            "producer_id": "producer:2222222222222222222222222222222222222222222222222222222222222222",
+            "rang": 1,
+            "score": 3
+          },
+          {
+            "producer_id": "producer:3333333333333333333333333333333333333333333333333333333333333333",
+            "rang": 2,
+            "score": 2
+          }
+        ]
+      }
+    ]
+  }
+]

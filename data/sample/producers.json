@@ -1,0 +1,145 @@
+[
+  {
+    "id": "producer:1111111111111111111111111111111111111111111111111111111111111111",
+    "id_court": "41ab099838",
+    "nom": "Vigneron Exemple A",
+    "slug": "vigneron-exemple-a",
+    "url": "/vignerons/41ab099838-vigneron-exemple-a/",
+    "commune": "Commune Exemple",
+    "code_postal": "01000",
+    "vigneron_independant": true,
+    "score": 4.666666666666666,
+    "appellations": [
+      {
+        "appellation_id": "appellation:fictive",
+        "couleur": "Rouge",
+        "rang": 1,
+        "total_vignerons_medailles": 8,
+        "score": 3.6666666666666665,
+        "top5": true
+      },
+      {
+        "appellation_id": "appellation:fictive",
+        "couleur": "Blanc",
+        "rang": 6,
+        "total_vignerons_medailles": 8,
+        "score": 1,
+        "top5": false
+      }
+    ],
+    "medailles": [
+      {
+        "appellation_id": "appellation:fictive",
+        "concours_id": "concours:fictif",
+        "annee": 2026,
+        "medaille": "Or",
+        "couleur": "Rouge",
+        "cuvee": "Cuvée fictive"
+      },
+      {
+        "appellation_id": "appellation:fictive",
+        "concours_id": "concours:fictif",
+        "annee": 2025,
+        "medaille": "Bronze",
+        "couleur": "Blanc"
+      }
+    ],
+    "adresse": "1 rue Fictive",
+    "latitude": 46.2,
+    "longitude": 5.2,
+    "site": "https://example.org/",
+    "telephone": "+33 1 00 00 00 00"
+  },
+  {
+    "id": "producer:2222222222222222222222222222222222222222222222222222222222222222",
+    "id_court": "f765e5625d",
+    "nom": "Vigneron Exemple B",
+    "slug": "vigneron-exemple-b",
+    "url": "/vignerons/f765e5625d-vigneron-exemple-b/",
+    "commune": "Commune Exemple",
+    "code_postal": "01000",
+    "vigneron_independant": false,
+    "score": 6.333333333333334,
+    "appellations": [
+      {
+        "appellation_id": "appellation:fictive",
+        "couleur": "Rouge",
+        "rang": 2,
+        "total_vignerons_medailles": 8,
+        "score": 3.3333333333333335,
+        "top5": true
+      },
+      {
+        "appellation_id": "appellation:fictive",
+        "couleur": "Blanc",
+        "rang": 1,
+        "total_vignerons_medailles": 8,
+        "score": 3,
+        "top5": true
+      }
+    ],
+    "medailles": [
+      {
+        "appellation_id": "appellation:fictive",
+        "concours_id": "concours:fictif",
+        "annee": 2026,
+        "medaille": "Argent",
+        "couleur": "Rouge",
+        "cuvee": "Cuvée fictive"
+      },
+      {
+        "appellation_id": "appellation:fictive",
+        "concours_id": "concours:fictif",
+        "annee": 2025,
+        "medaille": "Bronze",
+        "couleur": "Blanc"
+      }
+    ]
+  },
+  {
+    "id": "producer:3333333333333333333333333333333333333333333333333333333333333333",
+    "id_court": "d3facdc089",
+    "nom": "Vigneron Exemple C",
+    "slug": "vigneron-exemple-c",
+    "url": "/vignerons/d3facdc089-vigneron-exemple-c/",
+    "commune": "Commune Exemple",
+    "code_postal": "01000",
+    "vigneron_independant": false,
+    "score": 5.0,
+    "appellations": [
+      {
+        "appellation_id": "appellation:fictive",
+        "couleur": "Rouge",
+        "rang": 3,
+        "total_vignerons_medailles": 8,
+        "score": 3.0,
+        "top5": true
+      },
+      {
+        "appellation_id": "appellation:fictive",
+        "couleur": "Blanc",
+        "rang": 2,
+        "total_vignerons_medailles": 8,
+        "score": 2,
+        "top5": true
+      }
+    ],
+    "medailles": [
+      {
+        "appellation_id": "appellation:fictive",
+        "concours_id": "concours:fictif",
+        "annee": 2026,
+        "medaille": "Argent",
+        "couleur": "Rouge",
+        "cuvee": "Cuvée fictive"
+      },
+      {
+        "appellation_id": "appellation:fictive",
+        "concours_id": "concours:fictif",
+        "annee": 2025,
+        "medaille": "Bronze",
+        "couleur": "Blanc"
+      }
+    ]
+  }
+]

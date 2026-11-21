@@ -1,0 +1,19 @@
+[
+  {
+    "id": "concours:fictif",
+    "nom": "Concours Fictif",
+    "url": "https://example.org/palmares",
+    "poids": 1,
+    "campagnes_absorbees": [
+      2024,
+      2025,
+      2026
+    ],
+    "campagnes_score": [
+      2024,
+      2025,
+      2026
+    ],
+    "derniere_campagne": 2026
+  }
+]

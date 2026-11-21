@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+.data-test-*/
+.verif/
+.verif.build.log
+tests/visual/out/
+# Données privées (dépôt laureati-data), récupérées au build par scripts/fetch-data.mjs.
+data/export/
+data/textes/*/*.md
+public/data-version.json

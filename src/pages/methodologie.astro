@@ -1,0 +1,65 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Freshness from '../components/Freshness.astro';
+import Icon from '../components/Icon.astro';
+import { dataset } from '../lib/data';
+import { calendrierPalmares, coefficientLabel, competitionKey, competitionPath, exempleCalcul, plageCalendrier } from '../lib/concours';
+import { formatScore } from '../lib/site';
+const exemple = exempleCalcul(dataset);
+const calendrier = calendrierPalmares(dataset);
+const plage = plageCalendrier(dataset);
+---
+<BaseLayout title="Comment Laureati classe les vignerons" description="Barème des médailles, fenêtre de trois campagnes, rang par appellation et couleur, calendrier des palmarès et limites des données recensées." breadcrumbs={[{name:'Méthodologie',path:'/methodologie/'}]}>
+  <h1>Comment Laureati classe les vignerons</h1>
+  <section><h2>Unité de classement et corpus</h2>
+    <p>Chaque classement porte sur une appellation et une couleur. Le score global d’un vigneron n’est pas son score dans chaque classement.</p>
+    <p>Le corpus publié réunit les cinq premiers de chaque groupe. Une fiche montre toutes les positions classées de ce vigneron, même après la cinquième place.</p>
+    <p>Le rang compte tous les vignerons médaillés recensés du groupe, y compris ceux sans fiche publique. Il ne porte pas sur tous les producteurs.</p>
+    <p>Les scores bruts sont triés par ordre décroissant. À égalité, le nom canonique départage les vignerons. Les rangs ne sont pas ex æquo.</p>
+    <p>Chaque score est affiché avec une décimale au maximum. Le tri utilise la précision complète, pas l’arrondi affiché.</p>
+  </section>
+  <section><h2>Fenêtre de trois campagnes</h2>
+    <p>Le calcul utilise les trois dernières campagnes absorbées de chaque concours, pas les trois dernières années civiles.</p>
+    <p>La campagne la plus récente a un coefficient de 1, la précédente de 2/3, puis la troisième de 1/3.</p>
+    <p>L’année indiquée est celle du concours. Ce n’est pas le millésime du vin.</p>
+  </section>
+  <section><h2>Barème et calcul</h2>
+    <p>Les niveaux de médaille observés par concours sont ordonnés : le meilleur vaut 3, le suivant 2, puis 1.</p>
+    <ul><li>Bordeaux, CGA, CVI, Mâcon et Orange : Or = 3, Argent = 2, Bronze = 1.</li><li>Ligers et Sud-Ouest : Grand Or = 3, Or = 2, Argent = 1.</li></ul>
+    <p>Une médaille Or ne vaut donc pas toujours 3 points.</p>
+    <p>Pour chaque concours et campagne, seule la meilleure médaille d’un vigneron dans l’appellation et la couleur contribue au score.</p>
+    <p><code>Contribution = poids du concours × coefficient de récence × meilleure médaille normalisée</code></p>
+    <p>Le score du groupe additionne ces contributions. Les autres médailles restent visibles sans augmenter cette contribution.</p>
+    <p>Le score global additionne les groupes du vigneron, y compris les résultats hors grille canonique. Ces derniers apparaissent seulement dans les médailles de sa fiche.</p>
+  </section>
+  <section><h2>Exemple de calcul</h2>
+    {exemple ? <>
+      <p>{exemple.producer.nom}, {exemple.appellation.nom} {exemple.couleur.toLowerCase()}. Ses médailles de ce groupe se recalculent ainsi, poids du concours × coefficient de récence × points :</p>
+      <ul class="calcul">{exemple.contributions.map(item => <li>
+        <span><a href={competitionPath(item.competition)}>{item.competition.nom}</a> {item.annee} · {item.medaille}</span>
+        <span>poids {item.poids} × {coefficientLabel(item.competition, item.annee)} × {item.points} point{item.points > 1 ? 's' : ''} = <strong>{formatScore(item.score)}</strong></span>
+        {item.autres > 0 && <span class="note">{item.autres} autre{item.autres > 1 ? 's' : ''} médaille{item.autres > 1 ? 's' : ''} de la même campagne, sans effet : seule la meilleure compte.</span>}
+      </li>)}</ul>
+      <p>Total : <strong>{formatScore(exemple.score)} points</strong>. Ce vigneron occupe le rang {exemple.rang} sur {exemple.total} vignerons médaillés recensés{exemple.suivant !== undefined && <>, devant le {exemple.rang + 1}e à {formatScore(exemple.suivant)} points</>}.</p>
+      <p class="note">Pour refaire le calcul, partez des palmarès officiels listés sur chaque page concours, relevez les médailles du vigneron dans cette appellation et cette couleur, puis appliquez le barème et les coefficients ci-dessus. Le rang se déduit en comparant le total aux autres vignerons du groupe. Les palmarès annuels de Laureati montrent les mêmes médailles pour le corpus publié.</p>
+    </> : <p>Le calcul se refait à partir des palmarès officiels : relevez les médailles d’un vigneron dans une appellation et une couleur, appliquez le barème et les coefficients de récence, puis comparez le total aux autres vignerons du groupe.</p>}
+  </section>
+  <section><h2>Concours et fraîcheur</h2><Freshness />
+    <ul>{dataset.competitions.map(c => <li><p><a href={competitionPath(c)}>{c.nom}</a> · poids : {c.poids} · campagnes absorbées : {c.campagnes_absorbees.join(', ')} · <a href={c.url}>palmarès officiel<Icon name="external" /></a>.</p></li>)}</ul>
+    <p class="note">L’export date du <time datetime={dataset.meta.exporte_le}>{dataset.meta.exporte_le}</time>. Cette date n’est pas la date d’absorption des campagnes.</p>
+  </section>
+  <section><h2>Calendrier annuel des palmarès</h2>
+    <p>{plage ? `Les palmarès paraissent en général de ${plage.debut} à ${plage.fin}.` : 'Les mois de parution ne sont pas renseignés dans cet export.'} Les mois ci-dessous sont des repères, pas des engagements : chaque concours publie son palmarès à son rythme.</p>
+    <ol class="calendar">{calendrier.map(repere => <li data-concours={competitionKey(repere.competition.id)}><strong>{repere.competition.nom}</strong><span>{repere.mois}</span></li>)}</ol>
+    <p>La page de chaque concours indique les campagnes réellement absorbées et la dernière campagne prise en compte.</p>
+  </section>
+  <section><h2>Limites à connaître</h2><ul>
+    <li>Un concours est un signal, pas une garantie de qualité ou de préférence personnelle.</li>
+    <li>Le corpus n’est pas exhaustif. L’absence d’un vigneron ne signifie pas qu’il produit moins bien.</li>
+    <li>Les noms sont regroupés automatiquement. Des erreurs d’identité ou de rattachement restent possibles.</li>
+    <li>Les coordonnées géographiques peuvent être imparfaites. Elles ne garantissent ni l’accueil ni les horaires de visite.</li>
+    <li>Les cuvées citées se limitent aux cuvées médaillées renseignées dans les résultats.</li>
+    <li>Les couleurs observées ne remplacent pas les règles réglementaires de l’appellation.</li>
+    <li>Le drapeau Vigneron Indépendant reflète l’information recensée. Son absence ne prouve pas une non-adhésion.</li>
+  </ul><p>Chaque fiche propose un formulaire « Suggérer une correction ». Vous pouvez aussi écrire à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>.</p></section>
+</BaseLayout>

@@ -1,0 +1,11 @@
+---
+import Icon from './Icon.astro';
+---
+<form class="search" action="/recherche/" method="get" role="search">
+  <label class="search__label" for="q">Rechercher un vigneron ou une appellation</label>
+  <div class="search__row">
+    <Icon name="search" class="search__icon" />
+    <input class="input search__input" id="q" name="q" type="search" placeholder="Ex. : Chablis" autocomplete="off" enterkeyhint="search" />
+    <button class="btn btn--primary" type="submit">Chercher</button>
+  </div>
+</form>

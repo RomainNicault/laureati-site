@@ -1,0 +1,75 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Carte from '../components/Carte.astro';
+import CarteCle from '../components/CarteCle.astro';
+import { couleursCarte } from '../lib/cartes';
+import Icon from '../components/Icon.astro';
+import Promesse from '../components/Promesse.astro';
+import RankRow from '../components/RankRow.astro';
+import SearchForm from '../components/SearchForm.astro';
+import { dataset, producersById } from '../lib/data';
+import { featuredGroups } from '../lib/une';
+import { formatInt, wineTone } from '../lib/ui';
+
+const { meta, appellations, regions, competitions } = dataset;
+const byName = (a: { nom: string }, b: { nom: string }) => a.nom.localeCompare(b.nom, 'fr');
+const appellationById = new Map(appellations.map(a => [a.id, a]));
+const regionCards = [...regions].sort(byName).map(region => {
+  const apps = region.appellations.map(id => appellationById.get(id)).filter(a => a !== undefined);
+  const producers = new Set(apps.flatMap(a => a.classements.flatMap(g => g.vignerons.map(v => v.producer_id))));
+  return { region, apps: apps.length, producers: producers.size };
+});
+// À la une : trois classements tirés au hasard à chaque build parmi les appellations les plus connues.
+const featured = featuredGroups(appellations, 3);
+const cles = couleursCarte('france');
+const inRegion = new Set(regions.flatMap(r => r.appellations));
+const sansRegion = appellations.filter(a => !inRegion.has(a.id)).sort(byName);
+---
+<BaseLayout bleed title="Les vignerons primés des concours français" description="Les meilleurs vignerons médaillés des concours français, classés par appellation et par couleur. Cherchez une appellation, comparez, appelez ou allez-y.">
+  <section class="hero" aria-labelledby="hero-titre">
+    <div class="container hero__body">
+      <h1 class="hero__title" id="hero-titre">Les vignerons primés, <em>par appellation.</em></h1>
+      <Promesse>Les meilleurs vignerons de chaque appellation selon {competitions.length} concours français : comparez, puis appelez ou allez-y.</Promesse>
+      <SearchForm />
+      <p><a class="text-link" href="/itineraire/">Un voyage prévu ? Les vignerons sur votre trajet<Icon name="arrow" /></a></p>
+    </div>
+  </section>
+
+  <div class="container">
+    <section class="section" aria-labelledby="regions">
+      <h2 id="regions">Découvrir par région</h2>
+      <div class="home-map">
+        <Carte nom="france" legende="Régions viticoles classées par Laureati. La pastille de chaque région, dans la liste, donne sa couleur sur la carte." />
+        <ul class="region-grid">
+          {regionCards.map(({ region, apps, producers }) => <li><a href={`/regions/${region.slug}/`}><strong><CarteCle couleur={cles.get(`/regions/${region.slug}/`)} />{region.nom}</strong><span>{apps} appellation{apps > 1 ? 's' : ''} · {producers} vignerons</span></a></li>)}
+        </ul>
+      </div>
+      {sansRegion.length > 0 && <p class="note" id="sans-region">Sans région rattachée : {sansRegion.map((a, i) => <>{i > 0 && ', '}<a href={`/appellations/${a.slug}/`}>{a.nom}</a></>)}.</p>}
+    </section>
+
+    <section class="section" aria-labelledby="une">
+      <h2 id="une">À la une</h2>
+      <p class="note">Trois classements tirés au hasard parmi les appellations les plus connues, renouvelés à chaque mise à jour.</p>
+      <ul class="une-grid">
+        {featured.map(({ appellation: a, group }) => {
+          const entries = [...group.vignerons].sort((x, y) => x.rang - y.rang).slice(0, 3);
+          const href = `/appellations/${a.slug}/#${group.ancre}`;
+          return <li><article class="une" data-tone={wineTone(group.couleur)}>
+            <h3><a href={href}>{a.nom}<span class="wine-color"><span class="swatch" aria-hidden="true"></span>{group.couleur}</span></a></h3>
+            <ol class="rank-list">{entries.map(v => {
+              const producer = producersById.get(v.producer_id)!;
+              return <li><RankRow producer={producer} rank={v.rang} total={group.total_vignerons_medailles} score={v.score} medals={producer.medailles.filter(m => m.appellation_id === a.id && m.couleur === group.couleur)} headingLevel={4} /></li>;
+            })}</ol>
+            <p class="une__more"><a class="text-link" href={href}>Les {Math.min(5, group.vignerons.length)} premiers sur {group.total_vignerons_medailles}<Icon name="arrow" /></a></p>
+          </article></li>;
+        })}
+      </ul>
+    </section>
+
+    <section class="section trust" aria-labelledby="confiance">
+      <h2 id="confiance">Un classement vérifiable</h2>
+      <p>Chaque classement porte sur une appellation et une couleur. Il additionne les médailles de {competitions.length} concours sur leurs trois dernières campagnes, la plus récente pesant le plus. Seuls les vignerons médaillés sont recensés : {formatInt(meta.comptes.vignerons)} vignerons, {formatInt(meta.comptes.appellations)} appellations, {formatInt(meta.comptes.medailles)} médailles.</p>
+      <p><a class="text-link" href="/methodologie/">Lire la méthode<Icon name="arrow" /></a> <a class="text-link" href="/concours/">Les concours suivis<Icon name="arrow" /></a></p>
+    </section>
+  </div>
+</BaseLayout>

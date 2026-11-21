@@ -1,0 +1,94 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="Politique de confidentialité" description="Données traitées par Laureati : formulaire de correction, fiches des vignerons, journaux techniques et droits des personnes." breadcrumbs={[{name:'Politique de confidentialité',path:'/confidentialite/'}]}>
+  <h1>Politique de confidentialité</h1>
+  <p>Cette page explique quelles données personnelles Laureati traite, pourquoi et pendant combien de temps. Elle applique le règlement général sur la protection des données (RGPD) et la loi Informatique et Libertés.</p>
+
+  <section><h2>Responsable du traitement</h2>
+    <p>Le responsable du traitement est Romain Nicault, éditeur du site à titre non professionnel. Pour toute question, écrivez à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>.</p>
+  </section>
+
+  <section><h2>Ni cookie ni mesure d’audience</h2>
+    <p>Le site ne dépose aucun cookie. Il n’utilise aucun outil de mesure d’audience, de publicité ou de suivi.</p>
+    <p>Les polices et la recherche sont servies par le site lui-même. Deux services tiers seulement : Cloudflare Turnstile, chargé uniquement après une interaction avec le formulaire de correction ou avec la recherche d’itinéraire, pour distinguer les visiteurs des robots ; Google Maps, sur la page itinéraire et seulement après votre clic sur « Calculer » (voir plus bas).</p>
+    <p>Les liens vers les palmarès, les sites des vignerons ou OpenStreetMap mènent vers d’autres sites. Leurs propres règles s’appliquent alors.</p>
+  </section>
+
+  <section><h2>Formulaire de correction</h2>
+    <p>Le formulaire « Suggérer une correction » enregistre les données suivantes :</p>
+    <ul>
+      <li>l’adresse de la page concernée et l’identifiant de la fiche ;</li>
+      <li>le champ à corriger, choisi dans une liste ;</li>
+      <li>la valeur proposée ;</li>
+      <li>votre commentaire, s’il y en a un ;</li>
+      <li>votre contact, s’il y en a un. Il est facultatif et sert seulement à vous répondre ;</li>
+      <li>la date et l’heure de réception ;</li>
+      <li>une empreinte de votre adresse IP (Internet Protocol), calculée avec la date du jour ;</li>
+      <li>un jeton de vérification anti-robot, utilisé pour accepter l’envoi puis non conservé ;</li>
+      <li>le statut de traitement de la suggestion.</li>
+    </ul>
+    <p>L’adresse IP elle-même n’est pas enregistrée dans la base des corrections ; elle figure seulement dans le journal technique décrit plus bas. Son empreinte change chaque jour. Elle sert seulement à limiter les envois à dix par jour, puis elle est effacée après 48 heures. C’est une donnée pseudonymisée, pas une donnée anonyme.</p>
+    <p>Évitez d’écrire dans le commentaire des informations sans rapport avec la correction.</p>
+    <ul>
+      <li>Finalités : vérifier et corriger les informations publiées, vous répondre si vous l’avez demandé, protéger le formulaire contre les abus.</li>
+      <li>Base légale : l’intérêt légitime de l’éditeur à publier des informations exactes et à protéger son service (article 6, paragraphe 1, point f du RGPD).</li>
+      <li>Durée de conservation : 12 mois à compter de la réception, puis suppression.</li>
+      <li>Destinataires : l’éditeur et Cloudflare, sous-traitant pour l’hébergement, la base D1 et le contrôle anti-robot. Pour ce contrôle, Cloudflare réutilise aussi certains signaux techniques pour son propre compte (voir la section Turnstile). Aucune donnée n’est vendue ni cédée.</li>
+      <li>Stockage : base de données Cloudflare D1, située en Europe de l’Ouest. Cloudflare agit comme sous-traitant de l’éditeur.</li>
+    </ul>
+  </section>
+
+  <section id="turnstile"><h2>Contrôle anti-robot Turnstile</h2>
+    <p>Le formulaire de correction est protégé par Cloudflare Turnstile. Le script du contrôle n’est chargé qu’après l’ouverture du formulaire ou une première interaction avec ses champs. Avant cette interaction, aucune ressource Turnstile n’est demandée.</p>
+    <p>Lors du contrôle, Cloudflare reçoit votre adresse IP, les caractéristiques techniques de votre navigateur et les signaux nécessaires à la détection des robots. Le contenu des champs du formulaire ne lui est pas transmis. Laureati reçoit un jeton, vérifié par le Worker avant tout enregistrement.</p>
+    <p>Base légale : l’intérêt légitime de l’éditeur à protéger le formulaire contre les envois automatisés (article 6, paragraphe 1, point f du RGPD). Cloudflare agit comme sous-traitant pour ce contrôle.</p>
+    <p>Cloudflare réutilise aussi ces signaux, en tant que responsable de traitement, pour améliorer la détection des robots. Il s’appuie pour cela sur son propre intérêt légitime. Ce traitement relève de Cloudflare, pas de l’éditeur. Il est décrit dans l’<a href="https://www.cloudflare.com/turnstile-privacy-policy/">addendum de confidentialité de Turnstile</a> ; pour l’exercice de vos droits sur ce traitement, écrivez à <a href="mailto:dpo@cloudflare.com">dpo@cloudflare.com</a>.</p>
+    <p>Le site n’active pas l’option de pré-autorisation de Turnstile, seule à déposer un cookie. Le site n’ajoute lui-même aucun cookie. Sans JavaScript, le contrôle ne peut pas s’exécuter et le formulaire est refusé ; une correction reste possible par courriel à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>.</p>
+  </section>
+
+  <section><h2>Données des vignerons publiées</h2>
+    <p>Les fiches présentent des informations professionnelles : nom du domaine, adresse, téléphone, site web, position géographique, médailles obtenues, score, rang et mention Vigneron Indépendant. Le nom d’un domaine peut contenir le nom d’une personne.</p>
+    <p>Ces informations proviennent de sources publiques : les palmarès et fiches des concours, l’annuaire des Vignerons Indépendants, la base SIRENE (Système informatisé du répertoire national des entreprises et des établissements) de l’Insee (Institut national de la statistique et des études économiques) et la Géoplateforme de l’IGN (Institut national de l’information géographique et forestière). Pour le lien « Y aller », seul l’identifiant de lieu Google (place_id), obtenu par Google Places, est conservé.</p>
+    <p>Laureati calcule un score et un rang pour chaque vigneron, par appellation et par couleur, à partir des palmarès officiels des concours. Le rang compte tous les vignerons médaillés recensés du groupe, y compris ceux sans fiche publique. La méthode est décrite sur la page <a href="/methodologie/">méthodologie</a>.</p>
+    <p>La base légale de la publication des fiches et du calcul du score et du rang est l’intérêt légitime d’informer le public sur les vignerons primés en concours (article 6, paragraphe 1, point f du RGPD). Les données restent publiées tant que le vigneron figure dans les résultats retenus.</p>
+    <p>Un vigneron peut demander la rectification de sa fiche. Il peut aussi s’opposer à sa publication, sans condition ni justification. Il suffit d’utiliser le formulaire de correction de sa fiche ou d’écrire à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>.</p>
+  </section>
+
+  <section id="itineraire"><h2>Page itinéraire et Google Maps</h2>
+    <p>La page itinéraire n’appelle aucun service tiers à l’affichage. Les champs de départ et d’arrivée sont en saisie libre, sans suggestion. La carte affichée d’abord est produite par Laureati, sans Google.</p>
+    <p>Cliquer sur « Calculer » vaut acceptation de l’envoi suivant, annoncé sous le bouton :</p>
+    <ul>
+      <li>Cloudflare Turnstile vérifie que la demande ne vient pas d’un robot. Cloudflare reçoit les informations nécessaires à ce contrôle, dont votre adresse IP. Le serveur du site vérifie le jeton, sans le conserver.</li>
+      <li>Google Maps Platform reçoit les adresses saisies et votre adresse IP. Il calcule le trajet en voiture (Routes API) et affiche la carte interactive (Maps JavaScript API).</li>
+      <li>Les aires des régions et appellations, puis les vignerons proches du trajet, sont calculés dans votre navigateur depuis les fichiers du site. Ce calcul n’envoie rien à Google.</li>
+    </ul>
+    <p>Ce choix est mémorisé dans le stockage local de votre appareil, sans cookie. Une fois mémorisé, la saisie d’une adresse affiche des suggestions de Google (Places API) : le texte saisi est transmis à Google dès trois caractères, après une courte pause de frappe. Le bouton « Oublier », affiché sous le formulaire, efface ce choix et recharge la page.</p>
+    <p>Laureati ne reçoit ni les lieux saisis ni le trajet : ils ne sont jamais envoyés à ses serveurs. Ils sont gardés dans votre navigateur, à deux endroits :</p>
+    <ul>
+      <li>Dans le stockage de session de l’onglet : les lieux saisis et le trajet calculé par Google. Ils permettent de retrouver le résultat après un retour arrière ou un rechargement, sans nouveau calcul ; seule la carte Google est alors rechargée. Ils sont effacés à la fermeture de l’onglet, ou par « Oublier ».</li>
+      <li>Dans l’adresse de la page : le départ, l’arrivée, l’identifiant Google des lieux choisis parmi les suggestions et la distance au trajet. Ils sont écrits dans la partie de l’adresse placée après le signe #. Les navigateurs ne transmettent jamais cette partie au serveur, ni au chargement de la page, ni à l’ouverture d’un lien partagé. Elle reste dans l’historique de votre navigateur et dans tout lien que vous copiez ou partagez. « Oublier » ne l’efface pas : supprimez-la de l’historique si besoin.</li>
+    </ul>
+    <p>Deux compteurs, conservés dans le même stockage de session, limitent l’usage par onglet : dix recherches et vingt chargements de la carte Google.</p>
+    <ul>
+      <li>Finalité : calculer un trajet et repérer les vignerons primés à proximité.</li>
+      <li>Base légale : votre consentement, exprimé par le clic sur « Calculer » (article 6, paragraphe 1, point a du RGPD). Vous pouvez le retirer à tout moment avec « Oublier ».</li>
+      <li>Destinataires : Google LLC et Cloudflare, Inc., établies aux États-Unis et adhérentes au cadre de protection des données entre l’Union européenne et les États-Unis (Data Privacy Framework). Consultez la <a href="https://policies.google.com/privacy">politique de confidentialité de Google</a>, les <a href="https://maps.google.com/help/terms_maps/">conditions de Google Maps</a> et la <a href="https://www.cloudflare.com/privacypolicy/">politique de confidentialité de Cloudflare</a>.</li>
+    </ul>
+    <p>Les liens « Y aller » ouvrent Apple Plans, Google Maps ou Waze seulement si vous les touchez.</p>
+  </section>
+
+  <section><h2>Journaux techniques de l’hébergeur</h2>
+    <p>Pour acheminer et sécuriser le site, Cloudflare traite des données techniques de connexion, comme l’adresse IP et le navigateur utilisé. Ces traitements relèvent de son rôle d’hébergeur. Ils sont décrits dans la <a href="https://www.cloudflare.com/privacypolicy/">politique de confidentialité de Cloudflare</a>.</p>
+    <p>Les appels aux fonctions du site, le formulaire de correction et le contrôle anti-robot, produisent un journal technique chez Cloudflare. Ce journal contient l’adresse appelée, les en-têtes de la requête, dont votre adresse IP, une localisation approximative déduite de cette adresse (pays, région, ville, code postal, coordonnées approchées, fuseau horaire), l’opérateur réseau et le résultat de l’appel. Il est conservé 3 jours, puis effacé par Cloudflare. L’éditeur ne le consulte que pour diagnostiquer une panne. Les pages et fichiers du site ne produisent pas ce journal.</p>
+    <p>Cloudflare, Inc. est établie aux États-Unis. Elle adhère au cadre de protection des données entre l’Union européenne et les États-Unis (Data Privacy Framework). Ce cadre couvre ces journaux, le stockage des suggestions de correction et les signaux du contrôle Turnstile.</p>
+  </section>
+
+  <section><h2>Vos droits</h2>
+    <p>Vous disposez d’un droit d’accès, de rectification, d’effacement, de limitation et d’opposition sur vos données. Pour les exercer, écrivez à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>. Une réponse vous sera apportée dans un délai d’un mois.</p>
+    <p>Pour une suggestion de correction, indiquez la page concernée et la date d’envoi. Sans contact enregistré, l’éditeur ne peut pas relier une suggestion à une personne avec certitude.</p>
+    <p>Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la CNIL (Commission nationale de l’informatique et des libertés) sur <a href="https://www.cnil.fr/fr/plaintes">www.cnil.fr</a>.</p>
+  </section>
+
+  <p class="note">Dernière mise à jour : 21 novembre 2026.</p>
+</BaseLayout>

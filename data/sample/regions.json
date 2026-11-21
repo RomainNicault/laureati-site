@@ -1,0 +1,10 @@
+[
+  {
+    "id": "region:fictive",
+    "nom": "Région Exemple",
+    "slug": "region-exemple",
+    "appellations": [
+      "appellation:fictive"
+    ]
+  }
+]

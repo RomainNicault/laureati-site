@@ -1,0 +1,42 @@
+---
+// Médailles détaillées d'une fiche, regroupées par appellation × couleur.
+import Medal from './Medal.astro';
+import MedalTally from './MedalTally.astro';
+import Swatch from './Swatch.astro';
+import { appellationsById, competitionsById } from '../lib/data';
+import type { Medal as MedalT, ProducerAppellation } from '../lib/types';
+import { sortMedals } from '../lib/ui';
+interface Props { medals: MedalT[]; positions?: ProducerAppellation[] }
+const { medals, positions = [] } = Astro.props;
+const MISSING = 'Appellation hors classement : libellé non fourni';
+const known = new Map<string, MedalT[]>();
+const unknown: MedalT[] = [];
+for (const m of medals) {
+  if (!appellationsById.has(m.appellation_id)) { unknown.push(m); continue; }
+  const key = `${m.appellation_id}|${m.couleur}`;
+  if (!known.has(key)) known.set(key, []);
+  known.get(key)!.push(m);
+}
+const order = positions.map(p => `${p.appellation_id}|${p.couleur}`);
+const keys = [...known.keys()].sort((a, b) => {
+  const ia = order.indexOf(a), ib = order.indexOf(b);
+  if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  return a.localeCompare(b, 'fr');
+});
+const groups = keys.map(key => {
+  const [id, couleur] = key.split('|');
+  return { title: appellationsById.get(id)!.nom, couleur, medals: sortMedals(known.get(key)!), classed: order.includes(key) };
+});
+const openAll = medals.length <= 12;
+const name = (id: string) => competitionsById.get(id)?.nom ?? id;
+---
+{medals.length === 0 ? <p class="note">Aucune médaille détaillée dans cet export.</p> : <div class="medal-groups">
+  {groups.map((g, i) => <details class="medal-group" open={openAll || i === 0}>
+    <summary><Swatch couleur={g.couleur} /><span class="medal-group__title">{g.title} · {g.couleur}<small>{g.medals.length} médaille{g.medals.length > 1 ? 's' : ''}{!g.classed && ' · couleur hors classement publié'}</small></span><MedalTally medals={g.medals} inline /></summary>
+    <ul class="medal-rows">{g.medals.map(m => <li class="medal-row"><Medal label={m.medaille} /><span class="medal-row__info"><span class="medal-row__comp"><strong>Concours {m.annee}</strong>{name(m.concours_id)}</span>{m.cuvee && <span class="medal-row__sub">{m.cuvee}</span>}</span></li>)}</ul>
+  </details>)}
+  {unknown.length > 0 && <details class="medal-group" open={openAll}>
+    <summary><span class="swatch" aria-hidden="true"></span><span class="medal-group__title">Autres appellations<small>{unknown.length} médaille{unknown.length > 1 ? 's' : ''} hors classement Laureati</small></span><MedalTally medals={unknown} inline /></summary>
+    <ul class="medal-rows">{sortMedals(unknown).map(m => <li class="medal-row"><Medal label={m.medaille} /><span class="medal-row__info"><span class="medal-row__comp"><strong>Concours {m.annee}</strong> · {name(m.concours_id)}</span><span class="medal-row__sub">{MISSING} · {m.couleur}{m.cuvee && ` · ${m.cuvee}`}</span></span></li>)}</ul>
+  </details>}
+</div>}

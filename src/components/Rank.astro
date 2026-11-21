@@ -1,0 +1,6 @@
+---
+import { ordinalSuffix } from '../lib/ui';
+interface Props { rank: number; size?: 'md' | 'sm' }
+const { rank, size = 'md' } = Astro.props;
+---
+<span class:list={['rank-numeral', { 'rank-numeral--sm': size === 'sm' }]} aria-hidden="true">{rank}<sup>{ordinalSuffix(rank)}</sup></span>

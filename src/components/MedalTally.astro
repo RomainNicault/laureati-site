@@ -1,0 +1,13 @@
+---
+// Décompte compact des médailles par niveau, pour comparer d'un coup d'œil.
+// inline : version en <span>, utilisable dans un <summary>.
+import type { Medal } from '../lib/types';
+import { MEDAL_LABEL, medalTally } from '../lib/ui';
+interface Props { medals: Medal[]; inline?: boolean }
+const { medals, inline = false } = Astro.props;
+const tally = medalTally(medals);
+const label = `${medals.length} médaille${medals.length > 1 ? 's' : ''} : ` + tally.map(t => `${t.count} ${MEDAL_LABEL[t.kind]}`).join(', ');
+---
+{inline
+  ? <span class="tally"><span class="sr-only">{label}</span>{tally.map(t => <span class="tally__item" aria-hidden="true"><span class={`coin coin--${t.kind}`}></span><strong>{t.count}</strong><span class="tally__label">{MEDAL_LABEL[t.kind]}</span></span>)}</span>
+  : <ul class="tally" aria-label={label}>{tally.map(t => <li class="tally__item"><span class={`coin coin--${t.kind}`} aria-hidden="true"></span><strong>{t.count}</strong><span class="tally__label">{MEDAL_LABEL[t.kind]}</span></li>)}</ul>}

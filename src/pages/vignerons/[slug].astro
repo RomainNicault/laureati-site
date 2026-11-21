@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CorrectionForm from '../../components/CorrectionForm.astro';
+import Actions from '../../components/Actions.astro';
+import ActionBar from '../../components/ActionBar.astro';
+import MedalGroups from '../../components/MedalGroups.astro';
+import PositionRow from '../../components/PositionRow.astro';
+import WhyRanking from '../../components/WhyRanking.astro';
+import Icon from '../../components/Icon.astro';
+import { dataset, producerPath, appellationsById } from '../../lib/data';
+import { SITE_URL, formatScore, safeWebsite } from '../../lib/site';
+import { displayPlace, formatDate, hostOf, producerSummary, producerType, telHref } from '../../lib/ui';
+import type { Producer } from '../../lib/types';
+export function getStaticPaths() {
+  return dataset.producers.map(producer => ({ params: { slug: `${producer.id_court}-${producer.slug}` }, props: { producer } }));
+}
+interface Props { producer: Producer }
+const { producer } = Astro.props;
+const website = safeWebsite(producer.site);
+const geolocated = producer.latitude !== undefined && producer.longitude !== undefined;
+const winery = {
+  '@context': 'https://schema.org', '@type': 'Winery', name: producer.nom,
+  url: website ?? new URL(producerPath(producer), SITE_URL).href,
+  mainEntityOfPage: new URL(producerPath(producer), SITE_URL).href,
+  address: { '@type': 'PostalAddress', ...(producer.adresse && { streetAddress: producer.adresse }), ...(producer.commune && { addressLocality: producer.commune }), ...(producer.code_postal && { postalCode: producer.code_postal }), addressCountry: 'FR' },
+  ...(geolocated && { geo: { '@type': 'GeoCoordinates', latitude: producer.latitude, longitude: producer.longitude } }),
+  ...(producer.telephone && { telephone: producer.telephone }),
+};
+const positions = [...producer.appellations].sort((a,b) => b.score-a.score || a.rang-b.rang);
+const bestAppellation = positions[0] ? appellationsById.get(positions[0].appellation_id) : undefined;
+const crumbs = [...(bestAppellation ? [{ name: bestAppellation.nom, path: `/appellations/${bestAppellation.slug}/` }] : []), { name: producer.nom, path: producerPath(producer) }];
+const type = producerType(producer);
+const summary = producerSummary(producer, appellationsById);
+const place = displayPlace(producer.commune);
+const medalsOf = (appellationId: string, couleur: string) => producer.medailles.filter(m => m.appellation_id === appellationId && m.couleur === couleur);
+const competitionIds = [...new Set(producer.medailles.map(m => m.concours_id))];
+---
+<BaseLayout bleed title={`${producer.nom} : classements et médailles`} description={`${producer.nom}${place ? `, ${(type ?? 'vigneron').replace(' (probable)', '').toLowerCase()} à ${place}` : ''}. Appellations classées, médailles recensées et coordonnées.`} searchable structuredData={winery} breadcrumbs={crumbs} bodyClass="has-action-bar">
+  <header class="container profile-head">
+    <h1>{producer.nom}</h1>
+    <p class="profile-id"><span><Icon name="pin" />{place ?? 'Commune non renseignée'}{producer.code_postal && ` (${producer.code_postal})`}</span>{type && <span class="profile-type">{type}</span>}{producer.vigneron_independant && <span class="flag-indep">Vigneron Indépendant</span>}</p>
+    {summary && <p class="profile-summary">{summary}</p>}
+    <Actions producer={producer} />
+    <div class="contact-strip">
+      <address>{producer.adresse && <>{producer.adresse}<br /></>}{producer.code_postal} {place}{!producer.adresse && <span class="note"> (rue non renseignée)</span>}</address>
+      <ul class="contact-list">
+        <li>{producer.telephone ? <a href={telHref(producer.telephone)}><Icon name="phone" />{producer.telephone}</a> : <span class="contact-list__item is-missing"><Icon name="phone" />Téléphone non renseigné</span>}</li>
+        <li>{website ? <a href={website}><Icon name="globe" />{hostOf(website)}</a> : <span class="contact-list__item is-missing"><Icon name="globe" />Site non renseigné</span>}</li>
+        {geolocated && <li><a href={`https://www.openstreetmap.org/?mlat=${producer.latitude}&mlon=${producer.longitude}#map=15/${producer.latitude}/${producer.longitude}`}><Icon name="pin" />Voir sur OpenStreetMap</a></li>}
+      </ul>
+      <p class="note">Coordonnées recensées, sans garantie d’accueil ni d’horaires. <a href="#correction">Signaler une erreur</a>.</p>
+    </div>
+    <p class="promise"><span class="data-stamp__date">Mis à jour le <time datetime={dataset.meta.exporte_le}>{formatDate(dataset.meta.exporte_le)}</time></span></p>
+  </header>
+
+  <div class="container">
+    <section aria-labelledby="classements">
+      <h2 id="classements">Ses classements</h2>
+      <p class="note">{positions.length} classement{positions.length > 1 ? 's' : ''} par appellation et couleur · {producer.medailles.length} médaille{producer.medailles.length > 1 ? 's' : ''} recensée{producer.medailles.length > 1 ? 's' : ''}</p>
+      <ol class="rank-list">{positions.map(position => <li data-position-score={position.score}><PositionRow position={position} medals={medalsOf(position.appellation_id, position.couleur)} /></li>)}</ol>
+      <p class="note profile-total">Score total : {formatScore(producer.score)} points, somme des scores par appellation et couleur.</p>
+    </section>
+
+    <section class="section" aria-labelledby="medailles">
+      <details class="medals-fold">
+        <summary><h2 id="medailles">Médailles détaillées</h2><span class="note">{producer.medailles.length} médaille{producer.medailles.length > 1 ? 's' : ''}</span></summary>
+        <p class="note">Le millésime du vin n’est pas renseigné. Chaque année ci-dessous est celle du concours. Toutes les médailles ne contribuent pas au score.</p>
+        <MedalGroups medals={producer.medailles} positions={positions} />
+      </details>
+    </section>
+
+    <WhyRanking competitionIds={competitionIds} />
+    <CorrectionForm page={producerPath(producer)} producerId={producer.id} />
+  </div>
+  <ActionBar slot="after" producer={producer} />
+</BaseLayout>

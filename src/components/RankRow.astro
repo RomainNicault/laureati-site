@@ -1,0 +1,52 @@
+---
+// Ligne de classement compacte, partagée par l'accueil, l'appellation et la région.
+// Rang, nom (lien vers la fiche), commune, score en avant, décompte des médailles,
+// icônes Appeler et Y aller ; le détail (médailles, site, label) se replie.
+import Icon from './Icon.astro';
+import Medal from './Medal.astro';
+import MedalTally from './MedalTally.astro';
+import Rank from './Rank.astro';
+import { competitionsById } from '../lib/data';
+import { formatScore } from '../lib/site';
+import { displayPlace, hostOf, producerActions, producerType, sortMedals } from '../lib/ui';
+import type { Medal as MedalData, Producer } from '../lib/types';
+interface Props { producer: Producer; rank: number; total: number; score: number; medals: MedalData[]; headingLevel?: 3 | 4; detail?: boolean }
+const { producer, rank, total, score, medals, headingLevel = 3, detail = true } = Astro.props;
+const Heading = `h${headingLevel}` as 'h3' | 'h4';
+const { phone, website, routes } = producerActions(producer);
+const years = medals.map(m => m.annee);
+const span = years.length ? (Math.min(...years) === Math.max(...years) ? `${Math.max(...years)}` : `${Math.min(...years)} à ${Math.max(...years)}`) : '';
+const type = producerType(producer);
+const place = displayPlace(producer.commune) ?? 'Commune non renseignée';
+---
+<article class:list={['rank-row', { 'rank-row--lead': rank === 1 }]}>
+  <div class="rank-row__rank"><Rank rank={rank} /><span class="sr-only">Rang {rank} sur {total}</span></div>
+  <div class="rank-row__id">
+    <Heading class="rank-row__name"><a href={producer.url}>{producer.nom}</a></Heading>
+    <p class="rank-row__place">{place}{producer.code_postal && ` (${producer.code_postal})`}</p>
+  </div>
+  <p class="rank-row__score"><strong>{formatScore(score)}</strong><span>points concours</span></p>
+  <div class="rank-row__tally"><MedalTally medals={medals} inline /></div>
+  <div class="rank-row__actions" data-pagefind-ignore>
+    {phone && <a class="icon-btn icon-btn--primary act-call" href={phone}><Icon name="phone" /><span class="sr-only">Appeler {producer.nom}</span></a>}
+    {routes.length > 0 && <details class="route act-route">
+      <summary class="icon-btn"><Icon name="route" /><span class="sr-only">Y aller : itinéraire vers {producer.nom}</span></summary>
+      <div class="route__menu">
+        <p class="route__title">Ouvrir l’itinéraire avec</p>
+        <ul>{routes.map(r => <li><a href={r.href}>{r.label}<Icon name="external" /></a></li>)}</ul>
+      </div>
+    </details>}
+  </div>
+  {detail && <details class="rank-row__more">
+    <summary>Détail<span class="sr-only"> : {producer.nom}</span>{span && <span class="rank-row__span"> · médailles {span}</span>}</summary>
+    <div class="rank-row__body">
+      <p class="rank-row__facts">{type && <span>{type}</span>}{producer.vigneron_independant && <span class="flag-indep">Vigneron Indépendant</span>}</p>
+      {!phone && <p class="note contact-missing">Téléphone non renseigné</p>}
+      {website && <p><a class="act-site" href={website}>Site : {hostOf(website)}<span class="sr-only"> ({producer.nom})</span></a></p>}
+      {medals.length > 0 && <ul class="rank-row__medals">{sortMedals(medals).map(m => {
+        const competition = competitionsById.get(m.concours_id);
+        return <li><Medal label={m.medaille} coin={false} /><span><strong>Concours {m.annee}</strong> {competition ? <a href={competition.url}>{competition.nom}</a> : m.concours_id}{m.cuvee && <span class="rank-row__cuvee">{m.cuvee}</span>}</span></li>;
+      })}</ul>}
+    </div>
+  </details>}
+</article>

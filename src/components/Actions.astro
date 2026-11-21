@@ -1,0 +1,22 @@
+---
+// Actions directes d'un vigneron : Appeler, Y aller (Apple Plans, Google Maps, Waze), Site.
+// Une action sans donnée n'est pas affichée. Fonctionne sans JavaScript (details natif).
+import Icon from './Icon.astro';
+import type { Producer } from '../lib/types';
+import { producerActions } from '../lib/ui';
+interface Props { producer: Producer; variant?: 'card' | 'bar' }
+const { producer, variant = 'card' } = Astro.props;
+const { phone, website, routes } = producerActions(producer);
+const count = [phone, routes.length, website].filter(Boolean).length;
+---
+{count > 0 && <div class={`actions actions--${variant}`} style={`--n:${count}`} data-pagefind-ignore>
+  {phone && <a class="btn btn--primary act-call" href={phone}><Icon name="phone" />Appeler<span class="sr-only"> {producer.nom}</span></a>}
+  {routes.length > 0 && <details class="route act-route">
+    <summary class="btn"><Icon name="route" />Y aller<span class="sr-only"> : itinéraire vers {producer.nom}</span><Icon name="chevron" class="route__chev" /></summary>
+    <div class="route__menu">
+      <p class="route__title">Ouvrir l’itinéraire avec</p>
+      <ul>{routes.map(r => <li><a href={r.href}>{r.label}<Icon name="external" /></a></li>)}</ul>
+    </div>
+  </details>}
+  {website && <a class="btn btn--site act-site" href={website}><Icon name="globe" />Site<span class="sr-only"> de {producer.nom}</span></a>}
+</div>}

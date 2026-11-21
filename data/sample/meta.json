@@ -1,0 +1,25 @@
+{
+  "schema_version": "e1-export-1",
+  "exporte_le": "2026-10-31T12:00:00+01:00",
+  "perimetre": "fictif",
+  "appellations_selectionnees": [
+    "appellation:fictive"
+  ],
+  "fenetre_campagnes": 3,
+  "comptes": {
+    "vignerons": 3,
+    "appellations": 1,
+    "groupes_classes": 2,
+    "regions": 1,
+    "concours": 1,
+    "medailles": 6,
+    "redirections": 0
+  },
+  "comptes_globaux": {
+    "producteurs_base": 3,
+    "vignerons_publies": 3,
+    "appellations_classees": 1,
+    "groupes_classes": 2,
+    "redirections_eligibles": 0
+  }
+}

@@ -1,0 +1,6 @@
+---
+// Ligne de promesse en tête de page : une phrase, puis la fraîcheur des données.
+import { dataset } from '../lib/data';
+import { formatDate } from '../lib/ui';
+---
+<p class="promise"><slot /> <span class="promise__date">Mis à jour le <time datetime={dataset.meta.exporte_le}>{formatDate(dataset.meta.exporte_le)}</time>.</span></p>

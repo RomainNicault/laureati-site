@@ -1,0 +1,4 @@
+# Les adresses *.workers.dev (ancienne production et prévisualisations) restent hors index.
+# laureati.fr ne correspond à aucune règle : il est indexable.
+https://:worker.:subdomain.workers.dev/*
+  X-Robots-Tag: noindex

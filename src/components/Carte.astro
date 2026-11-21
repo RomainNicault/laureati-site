@@ -1,0 +1,13 @@
+---
+// Carte SVG versionnée (src/assets/cartes), insérée dans le HTML : liens actifs sans JavaScript.
+// La carte sert au pointeur ; la liste qui l'accompagne porte les mêmes liens au clavier
+// et aux lecteurs d'écran (SVG masqué, liens hors tabulation).
+import { carteSvg } from '../lib/cartes';
+interface Props { nom: string; legende: string }
+const { nom, legende } = Astro.props;
+const svg = carteSvg(nom);
+---
+{svg && <figure class="carte">
+  <div class="carte__svg" set:html={svg} />
+  <figcaption>{legende} Contour indicatif, sans portée juridique. Sources : INAO (Licence Ouverte 1.0), IGN et INSEE (Licence Ouverte 2.0), Natural Earth.</figcaption>
+</figure>}

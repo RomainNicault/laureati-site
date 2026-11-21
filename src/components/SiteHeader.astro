@@ -1,0 +1,17 @@
+---
+import Icon from './Icon.astro';
+const path = Astro.url.pathname;
+---
+<header class="masthead on-dark">
+  <div class="container masthead__inner">
+    <a class="brand" href="/" aria-label="Laureati, accueil">
+      <img class="brand__seal" src="/brand/sceau-96.webp" width="44" height="44" alt="" />
+      <span class="brand__text"><span class="brand__word">Laureati</span><span class="brand__tag">Palmarès des vignerons</span></span>
+    </a>
+    <nav class="mainnav" aria-label="Navigation principale">
+      <a href="/recherche/" aria-current={path.startsWith('/recherche') ? 'page' : undefined}><Icon name="search" /><span class="mainnav__label">Rechercher</span></a>
+      <a href="/itineraire/" aria-current={path.startsWith('/itineraire') ? 'page' : undefined}>Sur ma route</a>
+      <a href="/methodologie/" aria-current={path.startsWith('/methodologie') ? 'page' : undefined}>Méthode</a>
+    </nav>
+  </div>
+</header>

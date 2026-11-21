@@ -1,0 +1,54 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Carte from '../../components/Carte.astro';
+import CarteCle from '../../components/CarteCle.astro';
+import { couleursCarte } from '../../lib/cartes';
+import Icon from '../../components/Icon.astro';
+import Promesse from '../../components/Promesse.astro';
+import TexteEditorial from '../../components/TexteEditorial.astro';
+import { textes as lireTextes } from '../../lib/textes-store';
+import { dataset, appellationsById, producersById } from '../../lib/data';
+import { formatInt, wineTone } from '../../lib/ui';
+import type { Region } from '../../lib/types';
+export function getStaticPaths() { return dataset.regions.map(region => ({ params: { slug: region.slug }, props: { region } })); }
+interface Props { region: Region }
+const { region } = Astro.props;
+const textes = await lireTextes('textes-regions');
+const texte = textes.find(entry => entry.data.slug === region.slug);
+const appellations = region.appellations.map(id => appellationsById.get(id)).filter(a => a !== undefined).sort((a,b) => a.nom.localeCompare(b.nom, 'fr'));
+const producers = new Set(appellations.flatMap(a => a.classements.flatMap(g => g.vignerons.map(v => v.producer_id)))).size;
+const cles = couleursCarte(`regions/${region.slug}`);
+const items = appellations.map(a => {
+  const lead = [...a.classements].sort((x, y) => y.total_vignerons_medailles - x.total_vignerons_medailles)[0];
+  const first = lead ? [...lead.vignerons].sort((x, y) => x.rang - y.rang)[0] : undefined;
+  return { a, total: Math.max(0, ...a.classements.map(g => g.total_vignerons_medailles)), lead, first: first ? producersById.get(first.producer_id) : undefined };
+});
+// Repérage liste ↔ carte sans JavaScript : une paire de règles par aire cartographiée,
+// le slug vient de l'export (lettres, chiffres, tirets).
+const reperees = items.map(({ a }) => a.slug).filter(slug => /^[a-z0-9-]+$/.test(slug) && cles.has(`/appellations/${slug}/`));
+const reperage = reperees.map(slug => `.region-layout:has(#ap-${slug}:is(:hover,:focus-within)) .carte__svg a[href="/appellations/${slug}/"] path{opacity:1;stroke:var(--color-ink);stroke-width:2.5}.region-layout:has(.carte__svg a[href="/appellations/${slug}/"]:hover) #ap-${slug}{background:var(--color-sunken)}`).join('');
+---
+<BaseLayout bleed title={`Vignerons primés de ${region.nom} : carte et appellations`} description={`Les ${appellations.length} appellations classées de ${region.nom} sur une carte, puis les meilleurs vignerons médaillés recensés de chacune.`} breadcrumbs={[{ name: region.nom, path: `/regions/${region.slug}/` }]}>
+  {reperage && <style slot="head" is:inline set:html={reperage}></style>}
+  <header class="container page-head">
+    <p class="eyebrow">Région viticole</p>
+    <h1>{region.nom}</h1>
+    <Promesse>{appellations.length} appellation{appellations.length > 1 ? 's' : ''} classée{appellations.length > 1 ? 's' : ''} et {formatInt(producers)} vignerons médaillés recensés, pas tous les producteurs.</Promesse>
+  </header>
+
+  {texte && <div class="container"><TexteEditorial texte={texte} /></div>}
+
+  <div class="container">
+    <section class="section" aria-labelledby="appellations">
+      <h2 id="appellations">Les appellations de la région</h2>
+      <p class="note">Choisissez une appellation pour comparer ses meilleurs vignerons, couleur par couleur.</p>
+      <div class="region-layout">
+        <Carte nom={`regions/${region.slug}`} legende={`Aires des appellations classées de la région ${region.nom}, approchées par les communes. La pastille de chaque appellation, dans la liste, donne sa couleur sur la carte ; deux aires voisines n'ont jamais la même couleur, et le survol d'une appellation de la liste la fait ressortir sur la carte.`} />
+        <ul class="appellation-list">{items.map(({ a, total, lead, first }) => <li id={`ap-${a.slug}`} data-aire={reperees.includes(a.slug) ? '' : undefined}>
+          <a href={`/appellations/${a.slug}/`}><strong><CarteCle couleur={cles.get(`/appellations/${a.slug}/`)} />{a.nom}</strong><Icon name="arrow" /></a>
+          <p class="appellation-list__meta"><span class="appellation-list__colors">{a.classements.map(g => <span class="wine-color" data-tone={wineTone(g.couleur)}><span class="swatch" aria-hidden="true"></span>{g.couleur}</span>)}</span><span>{total} vignerons médaillés{first && lead && <>, 1er en {lead.couleur.toLowerCase()} : {first.nom}</>}</span></p>
+        </li>)}</ul>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

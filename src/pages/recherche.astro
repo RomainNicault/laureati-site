@@ -1,0 +1,18 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { dataset, producerPath } from '../lib/data';
+---
+<BaseLayout title="Recherche" description="Recherchez une appellation ou un vigneron dans les fiches Laureati." breadcrumbs={[{name: 'Recherche', path: '/recherche/'}]}>
+  <link slot="head" href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+  <h1>Rechercher</h1><p class="lede">Un vigneron, une commune ou une appellation.</p>
+  <div id="search"></div>
+  <noscript><p>La recherche nécessite JavaScript. Les liens ci-dessous restent disponibles.</p></noscript>
+  <section><h2>Appellations</h2><ul class="link-list link-list--cols">{dataset.appellations.map((appellation) => <li><a href={`/appellations/${appellation.slug}/`}>{appellation.nom}</a></li>)}</ul></section>
+  <section><h2>Vignerons</h2><ul class="link-list link-list--cols">{dataset.producers.map((producer) => <li><a href={producerPath(producer)}>{producer.nom}</a></li>)}</ul></section>
+  <script is:inline src="/pagefind/pagefind-ui.js"></script>
+  <script is:inline>
+    const ui = new PagefindUI({ element: '#search', showSubResults: true });
+    const query = new URLSearchParams(window.location.search).get('q');
+    if (query) ui.triggerSearch(query);
+  </script>
+</BaseLayout>

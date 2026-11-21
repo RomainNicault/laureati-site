@@ -1,0 +1,20 @@
+# Laureati
+
+> Les vignerons primés en concours, classés par appellation et par couleur.
+
+Adresse canonique : https://laureati.fr/
+Les classements reprennent les palmarès officiels publics de sept concours français, sur les trois dernières campagnes absorbées.
+
+## Sections
+- [Accueil](https://laureati.fr/)
+- [Recherche](https://laureati.fr/recherche/) : accès aux fiches vignerons et appellations.
+- Fiches vignerons : https://laureati.fr/vignerons/<identifiant>-<slug>/
+- Fiches appellations : https://laureati.fr/appellations/<slug>/, sections par couleur.
+- Régions : https://laureati.fr/regions/<slug>/
+- [Méthodologie](https://laureati.fr/methodologie/) : barème, fenêtre de campagnes et limites.
+- [Plan du site](https://laureati.fr/sitemap-index.xml)
+- [Mentions légales](https://laureati.fr/mentions-legales/)
+- [Politique de confidentialité](https://laureati.fr/confidentialite/)
+
+## Contact
+Signaler une erreur : formulaire de correction de chaque fiche, ou contact@laureati.fr.

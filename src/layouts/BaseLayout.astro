@@ -1,0 +1,71 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import { INDEXABLE, SITE_NAME, SITE_URL } from '../lib/site';
+import type { Breadcrumb } from '../lib/types';
+import { serializeJsonLd as serialize } from '../lib/json-ld';
+import { dataset } from '../lib/data';
+interface Props {
+  title: string;
+  description: string;
+  breadcrumbs?: Breadcrumb[];
+  structuredData?: Record<string, unknown>;
+  searchable?: boolean;
+  noindex?: boolean;
+  /** Pages qui gèrent elles-mêmes leurs conteneurs (sections pleine largeur). */
+  bleed?: boolean;
+  bodyClass?: string;
+  /** false : page servie à toute adresse (404), sans canonique ni fil d'Ariane. */
+  canonical?: boolean;
+  preload?: { href: string; as: string; type?: string; imagesrcset?: string; imagesizes?: string }[];
+}
+const { title, description, breadcrumbs = [], structuredData, searchable = false, noindex = false, bleed = false, bodyClass, preload = [], canonical: withCanonical = true } = Astro.props;
+const canonical = new URL(Astro.url.pathname, SITE_URL).href;
+const pageTitle = `${title} | ${SITE_NAME}`;
+const trail = [{ name: 'Accueil', path: '/' }, ...breadcrumbs];
+const breadcrumbSchema = {
+  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+  itemListElement: trail.map((item, index) => ({
+    '@type': 'ListItem', position: index + 1, name: item.name, item: new URL(item.path, SITE_URL).href,
+  })),
+};
+---
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    {(!INDEXABLE || noindex) && <meta name="robots" content="noindex" />}
+    {withCanonical && <link rel="canonical" href={canonical} />}
+    <meta name="theme-color" content="#5B1428" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" href="/fonts/cormorant-garamond-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/work-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    {preload.map(p => <link rel="preload" {...p} />)}
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    {withCanonical && <meta property="og:url" content={canonical} />}
+    {withCanonical && <script type="application/ld+json" set:html={serialize(breadcrumbSchema)} />}
+    {structuredData && <script type="application/ld+json" set:html={serialize(structuredData)} />}
+    <slot name="head" />
+  </head>
+  <body class={bodyClass}>
+    <a class="skip-link" href="#contenu">Aller au contenu</a>
+    <SiteHeader />
+    {dataset.meta.perimetre === 'fictif' && <div class="notice-band" role="note"><p class="container">Données d’exemple fictives : ce n’est pas un palmarès réel.</p></div>}
+    {breadcrumbs.length > 0 && <div class="container"><Breadcrumbs trail={trail} /></div>}
+    <main id="contenu" data-pagefind-body={searchable || undefined}>
+      {bleed ? <slot /> : <div class="container page-body"><slot /></div>}
+    </main>
+    <SiteFooter />
+    <slot name="after" />
+  </body>
+</html>

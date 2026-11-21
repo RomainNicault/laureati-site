@@ -1,0 +1,16 @@
+---
+// Fraîcheur : dernière campagne absorbée par concours, distincte de la date d'export.
+import Icon from './Icon.astro';
+import { dataset } from '../lib/data';
+interface Props { competitionIds?: string[]; open?: boolean }
+const { competitionIds, open = false } = Astro.props;
+const competitions = dataset.competitions.filter(c => !competitionIds || competitionIds.includes(c.id));
+const latest = Math.max(...competitions.map(c => c.derniere_campagne ?? 0));
+---
+<details class="freshness" open={open}>
+  <summary><Icon name="clock" /><span>Dernière campagne : <strong>{latest > 0 ? latest : 'aucune'}</strong> · {competitions.length} concours</span> <span class="freshness__more">Détail</span></summary>
+  <div class="freshness__body">
+    <p class="note">Dernière campagne absorbée par concours (pas la date d’export) :</p>
+    <ul>{competitions.map(c => <li><a href={c.url}>{c.nom}<Icon name="external" /></a><span>Dernière campagne : {c.derniere_campagne ?? 'aucune'} ; campagnes du score : {c.campagnes_score.join(', ')}.</span></li>)}</ul>
+  </div>
+</details>

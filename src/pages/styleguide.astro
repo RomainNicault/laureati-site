@@ -1,0 +1,155 @@
+---
+// Guide de style : tous les jetons (lus dans tokens.css) et composants, avec des données réelles.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import tokensCss from '../styles/tokens.css?raw';
+import Carte from '../components/Carte.astro';
+import CarteCle from '../components/CarteCle.astro';
+import Actions from '../components/Actions.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import CorrectionForm from '../components/CorrectionForm.astro';
+import Freshness from '../components/Freshness.astro';
+import Icon from '../components/Icon.astro';
+import Medal from '../components/Medal.astro';
+import MedalGroups from '../components/MedalGroups.astro';
+import MedalTally from '../components/MedalTally.astro';
+import Rank from '../components/Rank.astro';
+import RankRow from '../components/RankRow.astro';
+import WhyRanking from '../components/WhyRanking.astro';
+import Promesse from '../components/Promesse.astro';
+import Score from '../components/Score.astro';
+import PositionRow from '../components/PositionRow.astro';
+import DataStamp from '../components/DataStamp.astro';
+import SearchForm from '../components/SearchForm.astro';
+import SectionHead from '../components/SectionHead.astro';
+import Swatch from '../components/Swatch.astro';
+import { dataset, producersById } from '../lib/data';
+import { wineTone } from '../lib/ui';
+import { carteBrute, couleursCarte, liensCarte } from '../lib/cartes';
+
+const tokens = [...tokensCss.matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)].map(m => ({ name: m[1], value: m[2].trim() }));
+const group = (prefix: string) => tokens.filter(t => t.name.startsWith(prefix));
+const colors = [...group('color-'), ...group('medal-'), ...group('tone-')];
+const typeTokens = tokens.filter(t => /^(font-|text-|title-|numeral-|leading-|tracking-|weight-)/.test(t.name));
+const spaces = tokens.filter(t => /^(space-|gutter|container|measure)/.test(t.name));
+const shapes = tokens.filter(t => /^(radius-|border$|shadow-|tap-|bar-|ease|duration)/.test(t.name));
+
+const appellation = dataset.appellations.find(a => a.slug === 'chateauneuf-du-pape') ?? dataset.appellations[0];
+const group0 = appellation.classements.find(g => g.couleur === 'Rouge') ?? appellation.classements[0];
+const entries = [...group0.vignerons].sort((a, b) => a.rang - b.rang);
+const medalsOf = (id: string) => producersById.get(id)!.medailles.filter(m => m.appellation_id === appellation.id && m.couleur === group0.couleur);
+const producer = dataset.producers.find(p => p.slug === 'domaine-de-saint-siffrein') ?? dataset.producers[0];
+const noPhone = dataset.producers.find(p => !p.telephone && p.site);
+const colorsSeen = [...new Set(dataset.appellations.flatMap(a => a.classements.map(g => g.couleur)))];
+const position = producer.appellations[0];
+const cartesCles = couleursCarte('regions/beaujolais');
+const carteApps = liensCarte(carteBrute('regions/beaujolais') ?? '')
+  .map(href => dataset.appellations.find(a => `/appellations/${a.slug}/` === href))
+  .filter(a => a !== undefined);
+---
+<BaseLayout title="Guide de style" description="Jetons et composants du système de design Laureati." noindex breadcrumbs={[{ name: 'Guide de style', path: '/styleguide/' }]}>
+  <header class="page-head" style="padding-top: 0">
+    <p class="eyebrow">Système « Palmarès »</p>
+    <h1>Guide de style</h1>
+    <p class="lede">Jetons lus dans <code>src/styles/tokens.css</code> et composants rendus avec les données de l’export. Référence écrite : <code>DESIGN.md</code>.</p>
+  </header>
+
+  <section aria-labelledby="sg-couleurs">
+    <SectionHead eyebrow="Jetons" title="Couleurs" id="sg-couleurs"><p>Bordeaux pour la marque et l’action. Pièces de médaille et teintes de vin pour l’information, jamais pour du texte.</p></SectionHead>
+    <ul class="sg-tokens">{colors.map(t => <li><div class="sg-chip" style={`background: var(--${t.name})`}></div><code>--{t.name}</code><span>{t.value}</span></li>)}</ul>
+  </section>
+
+  <section aria-labelledby="sg-type">
+    <SectionHead eyebrow="Jetons" title="Typographie" id="sg-type" />
+    <div class="stack">
+      <p style="font-family: var(--font-display); font-size: var(--title-xl); font-weight: 700; line-height: 1">Titre XL <em style="font-weight: 600; color: var(--color-primary)">Cormorant</em></p>
+      <p style="font-family: var(--font-display); font-size: var(--title-lg); font-weight: 700; line-height: 1.05">Titre L, h1 des pages</p>
+      <p style="font-family: var(--font-display); font-size: var(--title-md); font-weight: 700">Titre M, h2 de section</p>
+      <p style="font-family: var(--font-display); font-size: var(--title-sm); font-weight: 700">Titre S, nom d’appellation</p>
+      <p class="lede">Chapeau en Work Sans 18 px. Il résume la page en une phrase.</p>
+      <p>Texte courant en Work Sans 16 px, interligne 1,55. Les phrases restent courtes.</p>
+      <p class="note">Métadonnées en 14 px minimum, interligne de 1,4 au moins. Secondaire brun foncé #5A4A42.</p>
+      <p class="eyebrow">Surtitre en capitales espacées</p>
+    </div>
+    <div class="sg-scroll"><table class="sg-table"><tbody>{typeTokens.map(t => <tr><th scope="row"><code>--{t.name}</code></th><td>{t.value}</td></tr>)}</tbody></table></div>
+  </section>
+
+  <section aria-labelledby="sg-espaces">
+    <SectionHead eyebrow="Jetons" title="Espacements, formes, profondeur" id="sg-espaces" />
+    <div class="sg-scroll"><table class="sg-table"><tbody>
+      {spaces.map(t => <tr><th scope="row"><code>--{t.name}</code></th><td>{t.value}</td><td>{t.name.startsWith('space-') && <span style={`display:block; height: 12px; width: var(--${t.name}); background: var(--color-primary); border-radius: 2px`}></span>}</td></tr>)}
+      {shapes.map(t => <tr><th scope="row"><code>--{t.name}</code></th><td>{t.value}</td><td>{t.name.startsWith('radius-') && <span style={`display:block; width: 48px; height: 32px; border: 2px solid var(--color-primary); border-radius: var(--${t.name})`}></span>}{t.name.startsWith('shadow-') && <span style={`display:block; width: 64px; height: 32px; background: var(--color-surface); border-radius: 8px; box-shadow: var(--${t.name})`}></span>}</td></tr>)}
+    </tbody></table></div>
+  </section>
+
+  <section aria-labelledby="sg-boutons">
+    <SectionHead eyebrow="Composants" title="Boutons et liens" id="sg-boutons" />
+    <div class="sg-row"><a class="btn btn--primary" href="#sg-boutons"><Icon name="phone" />Principal</a><a class="btn" href="#sg-boutons"><Icon name="route" />Secondaire</a><a class="btn btn--quiet" href="#sg-boutons">Discret</a><a class="text-link" href="#sg-boutons">Lien d’action<Icon name="arrow" /></a></div>
+    <div class="sg-demo sg-demo--dark on-dark"><div class="sg-row"><a class="btn btn--on-dark" href="#sg-boutons">Sur fond bordeaux<Icon name="arrow" /></a></div></div>
+  </section>
+
+  <section aria-labelledby="sg-medailles">
+    <SectionHead eyebrow="Composants" title="Médailles, score, rang" id="sg-medailles"><p>Pièces de 20 px, métal et nombre écrits. Scores en Work Sans 600 à 22 px, chiffres tabulaires. Points concours, pas une note sur 20. Aucun maximum inventé.</p></SectionHead>
+    <div class="sg-row"><Medal label="Grand Or" /><Medal label="Or" /><Medal label="Argent" /><Medal label="Bronze" /></div>
+    <MedalTally medals={medalsOf(entries[0].producer_id)} />
+    <div class="sg-row" style="align-items: flex-end; gap: var(--space-6)">
+      <Rank rank={1} /><Rank rank={2} /><Rank rank={5} size="sm" />
+      <div style="width: 10rem"><Score value={entries[0].score} /></div>
+      <div style="width: 10rem"><Score value={entries[4]?.score ?? entries[0].score} /></div>
+      <Score value={producer.score} label="Score total" size="lg" />
+    </div>
+    <div class="sg-row"><span class="flag-indep">Vigneron Indépendant</span><strong class="top5">Top 5</strong></div>
+  </section>
+
+  <section aria-labelledby="sg-teintes">
+    <SectionHead eyebrow="Composants" title="Couleurs de vin" id="sg-teintes"><p>Chaque couleur exportée reçoit une teinte. Elle signale la couleur, le texte la nomme.</p></SectionHead>
+    <div class="sg-row">{colorsSeen.map(c => <Swatch couleur={c} label />)}</div>
+  </section>
+
+  <section aria-labelledby="sg-actions">
+    <SectionHead eyebrow="Composants" title="Actions directes" id="sg-actions"><p>Appeler en plein bordeaux, Y aller en contour, Site en lien souligné. Les colonnes restent stables, même quand une action manque. Site dispose de 44 px. Cibles de 48 px. Une action sans donnée disparaît. « Y aller » propose Apple Plans, Google Maps et Waze.</p></SectionHead>
+    <Actions producer={producer} />
+    {noPhone && <><p class="note">Sans téléphone : {noPhone.nom}</p><Actions producer={noPhone} /></>}
+    <div class="sg-demo sg-demo--dark on-dark"><p class="note" style="color: var(--color-on-primary-muted)">Barre collante de la fiche vigneron (mobile) : même composant, variante sombre.</p></div>
+  </section>
+
+  <section aria-labelledby="sg-carte">
+    <SectionHead eyebrow="Composants" title={`Ligne de classement : ${appellation.nom}, ${group0.couleur}`} id="sg-carte"><p>Rang, nom (lien vers la fiche), commune, score en avant, décompte des médailles, icônes Appeler et Y aller de 44 px. Le détail se replie. Partagée par l’accueil, l’appellation et la région.</p></SectionHead>
+    <ol class="rank-list">{entries.slice(0, 3).map(e => <li><RankRow producer={producersById.get(e.producer_id)!} rank={e.rang} total={group0.total_vignerons_medailles} score={e.score} medals={medalsOf(e.producer_id)} /></li>)}</ol>
+    <WhyRanking />
+  </section>
+
+  <section aria-labelledby="sg-position">
+    <SectionHead eyebrow="Composants" title="Position sur une fiche" id="sg-position" />
+    <Promesse>Ligne de promesse : une phrase, puis la fraîcheur.</Promesse>
+    <ol class="rank-list"><li><PositionRow position={position} medals={producer.medailles.filter(m => m.appellation_id === position.appellation_id && m.couleur === position.couleur)} /></li></ol>
+    <MedalGroups medals={producer.medailles} positions={producer.appellations} />
+  </section>
+
+  <section aria-labelledby="sg-cartes">
+    <SectionHead eyebrow="Composants" title="Carte d’une région" id="sg-cartes"><p>La carte sert au pointeur ; la liste voisine porte les mêmes liens au clavier et aux lecteurs d’écran, et sa pastille sert de légende.</p></SectionHead>
+    <div class="region-layout">
+      <Carte nom="regions/beaujolais" legende="Aires des appellations du Beaujolais." />
+      <ul class="appellation-list">{carteApps.map(a => <li><a href={`/appellations/${a.slug}/`}><strong><CarteCle couleur={cartesCles.get(`/appellations/${a.slug}/`)} />{a.nom}</strong></a></li>)}</ul>
+    </div>
+  </section>
+
+  <section aria-labelledby="sg-nav">
+    <SectionHead eyebrow="Composants" title="Navigation" id="sg-nav"><p>En-tête et pied de page sont visibles sur cette page. Les liens de couleur sont des ancres de 44 px avec effectifs, jamais collantes. Les statistiques restent compactes à 14 px. Elles suivent les classements sur l’accueil.</p></SectionHead>
+    <Breadcrumbs trail={[{ name: 'Accueil', path: '/' }, { name: 'Rhône', path: '/regions/rhone/' }, { name: appellation.nom, path: `/appellations/${appellation.slug}/` }]} />
+    <nav class="color-nav" style="position: static" aria-label="Exemple de couleurs"><ul>{appellation.classements.map(g => <li><a href={`/appellations/${appellation.slug}/#${g.ancre}`} data-tone={wineTone(g.couleur)}><span class="swatch" aria-hidden="true"></span>{g.couleur}<span class="color-nav__count">{g.total_vignerons_medailles}</span></a></li>)}</ul></nav>
+    <details class="disclosure"><summary>Rhône <span class="disclosure__count">exemple</span></summary><div class="disclosure__body"><ul class="link-list"><li><a href={`/appellations/${appellation.slug}/`}>{appellation.nom}<Icon name="arrow" /></a></li></ul></div></details>
+    <dl class="stats stats--3"><div><dt>vignerons</dt><dd>{dataset.meta.comptes.vignerons}</dd></div><div><dt>appellations</dt><dd>{dataset.meta.comptes.appellations}</dd></div><div><dt>concours</dt><dd>{dataset.meta.comptes.concours}</dd></div></dl>
+  </section>
+
+  <section aria-labelledby="sg-fraicheur">
+    <SectionHead eyebrow="Composants" title="Fraîcheur des données" id="sg-fraicheur" />
+    <DataStamp />
+    <Freshness open />
+  </section>
+
+  <section aria-labelledby="sg-formulaires">
+    <SectionHead eyebrow="Composants" title="Formulaires" id="sg-formulaires" />
+    <SearchForm />
+    <CorrectionForm page="/styleguide/" />
+  </section>
+</BaseLayout>

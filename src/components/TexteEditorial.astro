@@ -1,0 +1,21 @@
+---
+// Texte éditorial et sources, rendus avant les classements de la page.
+import { render } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import Icon from './Icon.astro';
+import { formatDate } from '../lib/ui';
+type Texte = CollectionEntry<'textes-appellations'> | CollectionEntry<'textes-regions'> | CollectionEntry<'textes-concours'>;
+interface Props { texte: Texte }
+const { texte } = Astro.props;
+const { Content } = await render(texte);
+const sources = texte.data.sources;
+const maj = formatDate(`${texte.data.maj}T12:00:00+01:00`);
+---
+<section class="editorial" aria-label={`Texte éditorial : ${texte.data.nom}`}>
+  <div class="prose"><Content /></div>
+  {sources.length > 0 && <section class="editorial__sources" aria-labelledby="sources-editoriales">
+    <h2 id="sources-editoriales">Sources</h2>
+    <ul>{sources.map(source => <li><a href={source.url}>{source.titre}<Icon name="external" /></a></li>)}</ul>
+  </section>}
+  <p class="note">Texte mis à jour le <time datetime={texte.data.maj}>{maj}</time>.</p>
+</section>

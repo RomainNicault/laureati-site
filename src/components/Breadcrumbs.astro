@@ -1,0 +1,8 @@
+---
+import type { Breadcrumb } from '../lib/types';
+interface Props { trail: Breadcrumb[] }
+const { trail } = Astro.props;
+---
+<nav class="crumbs" aria-label="Fil d’Ariane">
+  <ol>{trail.map((item, index) => <li>{index === trail.length - 1 ? <span aria-current="page">{item.name}</span> : <a href={item.path}>{item.name}</a>}</li>)}</ol>
+</nav>

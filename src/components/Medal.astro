@@ -1,0 +1,11 @@
+---
+// Pastille d'une médaille : pièce + niveau. La classe « medal » est réservée à une médaille réelle.
+import { medalKind } from '../lib/ui';
+// coin={false} : pièce dessinée en CSS (::before), pour les longues listes comme les palmarès.
+interface Props { label: string; coin?: boolean }
+const { label, coin = true } = Astro.props;
+const kind = medalKind(label);
+---
+{coin
+  ? <span class={`medal medal--${kind}`}><span class={`coin coin--${kind}`} aria-hidden="true"></span>{label}</span>
+  : <span class={`medal medal--${kind}`}>{label}</span>}

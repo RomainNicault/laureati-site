@@ -1,0 +1,66 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { dataset } from '../lib/data';
+---
+<BaseLayout title="Mentions légales" description="Éditeur, hébergeur, propriété intellectuelle et sources des données de Laureati." breadcrumbs={[{name:'Mentions légales',path:'/mentions-legales/'}]}>
+  <h1>Mentions légales</h1>
+  <p>Ces mentions sont publiées en application de l’article 1-1 de la loi pour la confiance dans l’économie numérique (LCEN) du 21 juin 2004.</p>
+
+  <section><h2>Éditeur du site</h2>
+    <p>Le site laureati.fr est édité par Romain Nicault, personne physique, à titre non professionnel. Il ne vend rien et n’affiche aucune publicité.</p>
+    <p>En application de l’article 1-1, II de la LCEN, son adresse et son téléphone ne sont pas publiés. Il a communiqué ses éléments d’identification à l’hébergeur, dont les coordonnées figurent ci-dessous.</p>
+    <p>Contact : <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>.</p>
+    <p>Droit de réponse : toute personne nommée ou désignée sur le site peut adresser sa demande à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>.</p>
+  </section>
+
+  <section><h2>Hébergeur</h2>
+    <p>Le site est hébergé par Cloudflare, Inc.</p>
+    <ul>
+      <li>Adresse : 101 Townsend St, San Francisco, CA 94107, États-Unis.</li>
+      <li>Téléphone : +1 650 319 8930.</li>
+      <li>Site : <a href="https://www.cloudflare.com/">www.cloudflare.com</a>.</li>
+    </ul>
+  </section>
+
+  <section><h2>Propriété intellectuelle</h2>
+    <p>Les textes, la mise en page et le code du site sont des créations originales de l’éditeur. Toute reproduction substantielle exige son accord écrit.</p>
+    <p>Les médailles proviennent des palmarès officiels publiés par les concours. Laureati les recense, les calcule et les classe. Il ne revendique aucun droit sur ces résultats. Les palmarès d’origine restent consultables ici :</p>
+    <ul>{dataset.competitions.map(c => <li><a href={c.url}>{c.nom}</a></li>)}</ul>
+    <p>Les noms et marques des concours, des domaines et des appellations appartiennent à leurs titulaires.</p>
+  </section>
+
+  <section><h2>Indépendance</h2>
+    <p>Laureati est un site indépendant. Il n’a aucun lien avec les organisateurs des concours cités. Il n’est ni affilié à ces concours ni approuvé par eux. Les classements sont calculés par Laureati.</p>
+    <p>Les médailles sont citées en texte. Le site ne reproduit aucun visuel officiel de médaille.</p>
+  </section>
+
+  <section><h2>Sources des données de contact</h2>
+    <p>Les coordonnées des vignerons sont des informations professionnelles publiques. Elles proviennent des sources suivantes :</p>
+    <ul>
+      <li>les fiches publiées par les concours ;</li>
+      <li>l’annuaire des Vignerons Indépendants ;</li>
+      <li>la base SIRENE (Système informatisé du répertoire national des entreprises et des établissements) de l’Insee (Institut national de la statistique et des études économiques) ;</li>
+      <li>la Géoplateforme de l’IGN (Institut national de l’information géographique et forestière), pour la position des adresses ;</li>
+      <li>Google Places, pour l’identifiant de lieu (place_id) utilisé par le lien « Y aller ». Cet identifiant est la seule donnée conservée de ce service.</li>
+    </ul>
+    <p>Ces données peuvent contenir des erreurs. Elles ne garantissent ni l’accueil au domaine ni les horaires de visite.</p>
+  </section>
+
+  <section><h2>Sources des cartes</h2>
+    <p>Les contours des régions et des appellations sont construits à partir de données publiques ouvertes :</p>
+    <ul>
+      <li><a href="https://www.data.gouv.fr/datasets/aires-geographiques-des-aoc-aop">Aires géographiques des AOC/AOP</a> (appellations d’origine contrôlées et protégées) de l’INAO (Institut national de l’origine et de la qualité), liste des communes par aire du 9 octobre 2025 : Licence Ouverte 1.0 ;</li>
+      <li><a href="https://www.data.gouv.fr/datasets/66fa71e97cb6aae7e2ea088b">Admin Express COG 2026 simplifié</a> (code officiel géographique), publié par la DRAAF (Direction régionale de l’alimentation, de l’agriculture et de la forêt) Auvergne-Rhône-Alpes à partir des données de l’IGN, pour les contours des communes : Licence Ouverte 2.0 ;</li>
+      <li><a href="https://www.insee.fr/fr/information/7671867">table de passage des communes 2003-2026</a> de l’Insee : Licence Ouverte 2.0 ;</li>
+      <li>le contour de la France de <a href="https://www.naturalearthdata.com/about/terms-of-use/">Natural Earth</a> : domaine public.</li>
+    </ul>
+    <p>Ces contours sont indicatifs et sans portée juridique. Leur reprise ne vaut aucune caution des producteurs de ces données.</p>
+  </section>
+
+  <section><h2>Signaler une erreur</h2>
+    <p>Chaque fiche propose un formulaire « Suggérer une correction ». Vous pouvez aussi écrire à <a href="mailto:contact@laureati.fr">contact@laureati.fr</a>. Un vigneron peut demander la rectification de sa fiche ou s’opposer à sa publication par les mêmes moyens.</p>
+    <p>Le traitement des données personnelles est décrit dans la <a href="/confidentialite/">politique de confidentialité</a>.</p>
+  </section>
+
+  <p class="note">Dernière mise à jour : 21 novembre 2026.</p>
+</BaseLayout>

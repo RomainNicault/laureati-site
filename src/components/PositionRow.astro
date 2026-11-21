@@ -1,0 +1,23 @@
+---
+// Position d'un vigneron sur sa fiche, en ligne compacte : rang, appellation et couleur
+// (lien vers la comparaison), score en avant, médailles du groupe.
+import MedalTally from './MedalTally.astro';
+import Rank from './Rank.astro';
+import { appellationsById } from '../lib/data';
+import { colorAnchor, formatScore } from '../lib/site';
+import { wineTone } from '../lib/ui';
+import type { Medal, ProducerAppellation } from '../lib/types';
+interface Props { position: ProducerAppellation; medals: Medal[] }
+const { position, medals } = Astro.props;
+const appellation = appellationsById.get(position.appellation_id);
+if (!appellation) throw new Error(`Appellation absente : ${position.appellation_id}`);
+---
+<article class:list={['rank-row', 'rank-row--position', { 'rank-row--lead': position.rang === 1 }]} data-tone={wineTone(position.couleur)}>
+  <div class="rank-row__rank"><Rank rank={position.rang} /><span class="sr-only">Rang {position.rang} / {position.total_vignerons_medailles} médaillés</span></div>
+  <div class="rank-row__id">
+    <h3 class="rank-row__name"><a class="position" href={`/appellations/${appellation.slug}/#${colorAnchor(position.couleur)}`}>{appellation.nom}<span class="wine-color"><span class="swatch" aria-hidden="true"></span>{position.couleur}</span></a></h3>
+    <p class="rank-row__place">sur {position.total_vignerons_medailles} vignerons médaillés{position.top5 && <> · <strong class="top5">Top 5</strong></>}</p>
+  </div>
+  <p class="rank-row__score"><strong>{formatScore(position.score)}</strong><span>points concours</span></p>
+  {medals.length > 0 && <div class="rank-row__tally"><MedalTally medals={medals} inline /></div>}
+</article>
